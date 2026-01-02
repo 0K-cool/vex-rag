@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RAG maintenance subagent for system operations
 - Auto-indexing git hook for post-commit document indexing
 - CLI tools: `vex-search`, `vex-index`
-- Example configurations for PAI, VERSANT-IR, VERSANT-ATHENA
+- Example configurations for PAI, IR platform, Pentest platform
 - Comprehensive README with installation and usage guide
 - Python package structure with proper imports (rag.*)
 - Multi-project support via configuration files

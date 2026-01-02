@@ -7,7 +7,7 @@ name = "vex-rag"
 version = "1.0.1"
 description = "100% local RAG system with hybrid search, contextual chunking, and BGE reranking"
 authors = [
-    {name = "Kelvin Lomboy", email = "kelvin@lomboy.email"}
+    {name = "Kelvin Lomboy", email = "0k.8csjy@8shield.net"}
 ]
 readme = "README.md"
 license = {text = "MIT"}

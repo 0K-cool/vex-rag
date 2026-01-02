@@ -111,7 +111,7 @@ class BM25Search:
 
         Args:
             query: Search query text
-            project: Project name (PAI, VERSANT-IR, etc.)
+            project: Project name (PAI, IR-Platform, etc.)
             limit: Maximum number of results
 
         Returns:

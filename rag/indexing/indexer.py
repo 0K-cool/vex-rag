@@ -110,7 +110,7 @@ class KnowledgeBaseIndexer:
             contextual_chunks: List of ContextualChunk objects
             embeddings: List of embedding vectors (768-dim each)
             document_path: Path to source document
-            project: Project name (PAI, VERSANT-IR, etc.)
+            project: Project name (PAI, IR-Platform, etc.)
             file_type: File extension (.md, .py, etc.)
 
         Returns:

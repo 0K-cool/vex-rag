@@ -188,7 +188,7 @@ class RetrievalPipeline:
 
         Args:
             query: Search query
-            project: Project name (PAI, VERSANT-IR, etc.)
+            project: Project name (PAI, IR-Platform, etc.)
             top_k: Number of results to return
             verbose: Print detailed progress
 

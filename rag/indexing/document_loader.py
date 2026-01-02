@@ -62,7 +62,7 @@ class DocumentLoader:
 
         Args:
             file_path: Absolute path to file
-            project: Project name (PAI, VERSANT-IR, VERSANT-ATHENA, etc.)
+            project: Project name (PAI, IR-Platform, Pentest-Platform, etc.)
 
         Returns:
             Document object or None if file cannot be loaded

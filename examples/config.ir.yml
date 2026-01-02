@@ -1,13 +1,13 @@
-# Vex RAG Configuration for VERSANT IR & Threat Hunting
+# Vex RAG Configuration for IR Platform & Threat Hunting
 # Copy this file to your project root as .vex-rag.yml
 
 project:
-  name: VERSANT-IR
+  name: IR-Platform
   description: Incident Response and Threat Hunting platform
 
 database:
   path: ./lance_ir_kb
-  backup_dir: ~/Library/CloudStorage/ProtonDrive-kelvin@lomboy.email/VERSANT-IR-Backups/
+  backup_dir: ~/Library/CloudStorage/ProtonDrive-0k.8csjy@8shield.net/IR-Platform-Backups/
 
 indexing:
   chunk_size: 384
@@ -36,7 +36,7 @@ retrieval:
   reranker_model: BAAI/bge-reranker-large
 
 projects_to_index:
-  - name: VERSANT-IR
+  - name: IR-Platform
     paths:
       - docs/
       - playbooks/
@@ -45,7 +45,7 @@ projects_to_index:
       - README.md
 
 memory:
-  enabled: false  # Memory server not needed for VERSANT-IR
+  enabled: false  # Memory server not needed for IR-Platform
 
 backup:
   enabled: true

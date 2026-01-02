@@ -7,7 +7,7 @@ project:
 
 database:
   path: ./lance_vex_kb
-  backup_dir: ~/Library/CloudStorage/ProtonDrive-kelvin@lomboy.email/Vex-RAG-Backups/
+  backup_dir: ~/Library/CloudStorage/ProtonDrive-0k.8csjy@8shield.net/Vex-RAG-Backups/
 
 indexing:
   chunk_size: 384

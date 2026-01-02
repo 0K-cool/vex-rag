@@ -85,7 +85,7 @@ class ContextGenerator:
             full_document: Complete document content
             chunk: Specific chunk to generate context for
             file_path: Path to source file
-            project: Project name (PAI, VERSANT-IR, etc.)
+            project: Project name (PAI, IR-Platform, etc.)
 
         Returns:
             Generated context string or None if generation fails
