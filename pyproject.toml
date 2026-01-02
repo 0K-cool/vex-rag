@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vex-rag"
-version = "1.0.0"
+version = "1.0.1"
 description = "100% local RAG system with hybrid search, contextual chunking, and BGE reranking"
 authors = [
     {name = "Kelvin Lomboy", email = "kelvin@lomboy.email"}
@@ -51,10 +51,10 @@ vex-index = "rag.cli.index:main"
 vex-rag = "rag.cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/kelvinlomboy/vex-rag"
-Documentation = "https://github.com/kelvinlomboy/vex-rag/blob/main/README.md"
-Repository = "https://github.com/kelvinlomboy/vex-rag"
-Issues = "https://github.com/kelvinlomboy/vex-rag/issues"
+Homepage = "https://github.com/0K-cool/vex-rag"
+Documentation = "https://github.com/0K-cool/vex-rag/blob/main/README.md"
+Repository = "https://github.com/0K-cool/vex-rag"
+Issues = "https://github.com/0K-cool/vex-rag/issues"
 
 [tool.setuptools]
-packages = ["rag", "rag.indexing", "rag.retrieval", "rag.utils", "rag.mcp_server", "rag.cli"]
+packages = ["rag", "rag.indexing", "rag.retrieval", "rag.utils", "rag.cli"]

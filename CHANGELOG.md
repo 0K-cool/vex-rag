@@ -5,6 +5,27 @@ All notable changes to the Vex RAG Plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-01-02
+
+### Fixed
+- **CLI Shebang Portability** - Replaced hardcoded Python interpreter paths with proper package entry points
+  - Created `rag/cli/search.py` and `rag/cli/index.py` as standard Python modules
+  - CLI commands (`vex-search`, `vex-index`) now install correctly via `pip install -e .`
+  - Removed system-specific shebang lines that prevented installation on other machines
+
+- **Ollama Model Verification Warning** - Fixed cosmetic warning during indexing
+  - Improved error handling in `embedder.py` and `context_generator.py`
+  - Now handles both 'name' and 'model' keys from Ollama API response (API variation support)
+  - Clearer error messages when model verification fails
+
+- **Package Configuration** - Removed non-existent `rag.mcp_server` from setuptools packages list
+  - MCP server lives in PAI project (`.claude/mcp_servers/`), not in plugin
+  - Package now installs without errors
+
+### Changed
+- CLI tools now use standard Python entry points instead of standalone scripts
+- Improved installation documentation (recommend `pip install -e .` after clone)
+
 ## [1.0.0] - 2026-01-02
 
 ### Added

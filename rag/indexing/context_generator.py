@@ -52,11 +52,24 @@ class ContextGenerator:
         # Verify model is available
         try:
             models = ollama.list()
-            available = [m['name'] for m in models.get('models', [])]
-            if not any(self.model in name for name in available):
+            model_list = models.get('models', [])
+            # Handle both 'name' and 'model' keys (Ollama API variations)
+            available = []
+            for m in model_list:
+                if isinstance(m, dict):
+                    # Try 'name' first, fallback to 'model'
+                    model_name = m.get('name') or m.get('model', '')
+                    if model_name:
+                        available.append(model_name)
+
+            if available and not any(self.model in name for name in available):
                 raise ValueError(f"Model {self.model} not found. Available: {available}")
+        except ValueError:
+            # Re-raise ValueError (model not found)
+            raise
         except Exception as e:
-            logger.warning(f"Warning: Could not verify Ollama model: {e}")
+            # Only log warning for other exceptions (connection issues, etc.)
+            logger.warning(f"Could not verify Ollama model availability: {e}")
 
     def generate_context(
         self,
