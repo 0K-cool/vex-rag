@@ -1,0 +1,66 @@
+{
+  "name": "vex-rag",
+  "version": "1.0.0",
+  "description": "100% local RAG system with hybrid search, contextual chunking, and BGE reranking",
+  "author": "Kelvin Lomboy",
+  "repository": "https://github.com/kelvinlomboy/vex-rag",
+  "license": "MIT",
+
+  "compatibleWith": {
+    "claudeCode": ">=1.0.0"
+  },
+
+  "mcpServers": [
+    {
+      "name": "vex-knowledge-base",
+      "type": "stdio",
+      "command": "python3",
+      "args": ["-m", "mcp_server.vex_kb_server"],
+      "env": {
+        "RAG_CONFIG": "{project}/.vex-rag.yml"
+      }
+    }
+  ],
+
+  "commands": [
+    {
+      "name": "rag-search",
+      "description": "Search the RAG knowledge base",
+      "file": "commands/search.md"
+    },
+    {
+      "name": "rag-index",
+      "description": "Index documents into the knowledge base",
+      "file": "commands/index.md"
+    }
+  ],
+
+  "agents": [
+    {
+      "name": "rag-maintenance",
+      "description": "RAG system maintenance and troubleshooting",
+      "file": "agents/rag-maintenance.md"
+    }
+  ],
+
+  "hooks": [
+    {
+      "event": "post-commit",
+      "script": "hooks/post-commit.sh"
+    }
+  ],
+
+  "dependencies": {
+    "python": ">=3.11",
+    "ollama": ">=0.1.0"
+  },
+
+  "configuration": {
+    "required": [
+      ".vex-rag.yml"
+    ],
+    "optional": [
+      "lance_vex_kb/"
+    ]
+  }
+}

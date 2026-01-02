@@ -1,0 +1,176 @@
+#!/Users/kelvinlomboy/tools/vex-rag/.venv/bin/python3
+"""
+Vex Index - Index documents into the RAG knowledge base from command line
+
+Usage:
+    vex-index document.md
+    vex-index docs/playbooks/*.pdf --project PAI
+    vex-index --pattern 'docs/**/*.md'
+"""
+
+import sys
+import os
+import argparse
+from pathlib import Path
+
+# Add plugin to Python path
+PLUGIN_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(PLUGIN_DIR))
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Index documents into the Vex RAG knowledge base",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  vex-index document.md
+  vex-index docs/playbooks/nist-ir.pdf --project PAI
+  vex-index --pattern 'docs/**/*.pdf'
+  vex-index file.md --no-sanitize
+  vex-index --batch 'docs/rag/*.md'
+        """
+    )
+
+    parser.add_argument(
+        "file_path",
+        nargs="?",
+        help="Path to file to index"
+    )
+    parser.add_argument(
+        "--pattern",
+        help="Glob pattern for batch indexing (e.g., 'docs/**/*.md')"
+    )
+    parser.add_argument(
+        "--batch",
+        help="Batch index multiple files matching pattern"
+    )
+    parser.add_argument(
+        "--project",
+        help="Project name (default: from config)"
+    )
+    parser.add_argument(
+        "--no-sanitize",
+        action="store_true",
+        help="Disable PII sanitization (not recommended)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be indexed without actually doing it"
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-indexing even if file was already indexed"
+    )
+    parser.add_argument(
+        "--config",
+        default=".vex-rag.yml",
+        help="Path to configuration file (default: .vex-rag.yml)"
+    )
+
+    args = parser.parse_args()
+
+    if not args.file_path and not args.pattern and not args.batch:
+        parser.print_help()
+        return 1
+
+    try:
+        # Load configuration
+        import yaml
+        config_path = Path(args.config)
+        if not config_path.exists():
+            print(f"❌ Error: Configuration file not found: {config_path}", file=sys.stderr)
+            print(f"   Create .vex-rag.yml in your project root", file=sys.stderr)
+            print(f"   See examples in ~/.claude/plugins/vex-rag/examples/", file=sys.stderr)
+            return 1
+
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        db_path = config['database']['path']
+        project_name = args.project or config['project']['name']
+        enable_sanitization = not args.no_sanitize and config['indexing'].get('enable_sanitization', True)
+
+        # Import RAG modules
+        from rag.indexing.indexer import KnowledgeBaseIndexer
+        from rag.indexing.document_loader import DocumentLoader
+        from rag.indexing.sanitizer import Sanitizer
+
+        # Initialize indexer
+        print(f"📚 Initializing Vex indexer for {project_name}...", file=sys.stderr)
+        indexer = KnowledgeBaseIndexer(db_path=db_path)
+        indexer.initialize()
+
+        # Initialize document loader and sanitizer
+        loader = DocumentLoader()
+        sanitizer = Sanitizer() if enable_sanitization else None
+
+        # Determine files to index
+        files_to_index = []
+
+        if args.file_path:
+            file_path = Path(args.file_path)
+            if not file_path.exists():
+                print(f"❌ Error: File not found: {args.file_path}", file=sys.stderr)
+                return 1
+            files_to_index.append(file_path)
+
+        elif args.pattern or args.batch:
+            import glob
+            pattern = args.pattern or args.batch
+            matched_files = glob.glob(pattern, recursive=True)
+            if not matched_files:
+                print(f"❌ Error: No files matched pattern: {pattern}", file=sys.stderr)
+                return 1
+            files_to_index = [Path(f) for f in matched_files if Path(f).is_file()]
+            print(f"📁 Found {len(files_to_index)} file(s) matching pattern", file=sys.stderr)
+
+        if args.dry_run:
+            print("\n🔍 DRY RUN - Would index the following files:", file=sys.stderr)
+            for file_path in files_to_index:
+                print(f"   - {file_path}", file=sys.stderr)
+            return 0
+
+        # Index files
+        total_chunks = 0
+        for i, file_path in enumerate(files_to_index, 1):
+            print(f"\n📝 [{i}/{len(files_to_index)}] Indexing: {file_path}", file=sys.stderr)
+
+            try:
+                # Load document
+                document = loader.load_file(str(file_path), project_name)
+                if not document:
+                    print(f"   ❌ Failed to load file", file=sys.stderr)
+                    continue
+
+                # Apply sanitization if enabled
+                if sanitizer:
+                    sanitization_result = sanitizer.sanitize(document.content)
+                    document.content = sanitization_result.sanitized_text
+
+                # Index document
+                chunk_count = indexer.index_document(document)
+                total_chunks += chunk_count
+                print(f"   ✅ Indexed {chunk_count} chunk(s)", file=sys.stderr)
+
+            except Exception as e:
+                print(f"   ❌ Error indexing {file_path}: {e}", file=sys.stderr)
+                continue
+
+        print(f"\n✅ Indexing complete: {total_chunks} total chunks from {len(files_to_index)} file(s)", file=sys.stderr)
+        return 0
+
+    except ImportError as e:
+        print(f"❌ Error: Could not import RAG indexing module", file=sys.stderr)
+        print(f"   Make sure vex-rag plugin is properly installed", file=sys.stderr)
+        print(f"   Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"❌ Error during indexing: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())

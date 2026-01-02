@@ -1,0 +1,59 @@
+# Vex RAG Configuration for VERSANT IR & Threat Hunting
+# Copy this file to your project root as .vex-rag.yml
+
+project:
+  name: VERSANT-IR
+  description: Incident Response and Threat Hunting platform
+
+database:
+  path: ./lance_ir_kb
+  backup_dir: ~/Library/CloudStorage/ProtonDrive-kelvin@lomboy.email/VERSANT-IR-Backups/
+
+indexing:
+  chunk_size: 384
+  chunk_overlap: 0.15
+  context_model: llama3.1:8b
+  embedding_model: nomic-embed-text:latest
+  enable_sanitization: true
+  auto_index_extensions:
+    - .md
+    - .pdf
+    - .docx
+    - .txt
+  auto_index_paths:
+    - docs/
+    - playbooks/
+    - baselines/
+    - vql_queries/
+    - README.md
+
+retrieval:
+  default_top_k: 5
+  vector_limit: 20
+  bm25_limit: 20
+  fusion_limit: 10
+  enable_reranking: true
+  reranker_model: BAAI/bge-reranker-large
+
+projects_to_index:
+  - name: VERSANT-IR
+    paths:
+      - docs/
+      - playbooks/
+      - baselines/
+      - vql_queries/
+      - README.md
+
+memory:
+  enabled: false  # Memory server not needed for VERSANT-IR
+
+backup:
+  enabled: true
+  schedule: weekly
+  retention:
+    daily: 7
+    weekly: 4
+
+logging:
+  level: INFO
+  file: ./logs/rag.log

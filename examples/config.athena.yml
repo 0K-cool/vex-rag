@@ -1,0 +1,55 @@
+# Vex RAG Configuration for VERSANT ATHENA (Penetration Testing)
+# Copy this file to your project root as .vex-rag.yml
+
+project:
+  name: VERSANT-ATHENA
+  description: Penetration testing platform and methodology
+
+database:
+  path: ./lance_athena_kb
+  backup_dir: ~/Library/CloudStorage/ProtonDrive-kelvin@lomboy.email/VERSANT-ATHENA-Backups/
+
+indexing:
+  chunk_size: 384
+  chunk_overlap: 0.15
+  context_model: llama3.1:8b
+  embedding_model: nomic-embed-text:latest
+  enable_sanitization: false  # No PII in pentest docs
+  auto_index_extensions:
+    - .md
+    - .txt
+  auto_index_paths:
+    - methodology/
+    - tools/
+    - notes/
+    - README.md
+
+retrieval:
+  default_top_k: 5
+  vector_limit: 20
+  bm25_limit: 20
+  fusion_limit: 10
+  enable_reranking: true
+  reranker_model: BAAI/bge-reranker-large
+
+projects_to_index:
+  - name: VERSANT-ATHENA
+    paths:
+      - methodology/
+      - tools/
+      - notes/
+      - README.md
+
+memory:
+  enabled: false  # Memory server not needed for VERSANT-ATHENA
+
+backup:
+  enabled: true
+  schedule: weekly
+  retention:
+    daily: 7
+    weekly: 4
+
+logging:
+  level: INFO
+  file: ./logs/rag.log

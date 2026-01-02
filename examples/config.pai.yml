@@ -1,0 +1,57 @@
+# Vex RAG Configuration for Personal AI Infrastructure (PAI)
+# Copy this file to your project root as .vex-rag.yml
+
+project:
+  name: PAI
+  description: Personal AI Infrastructure documentation and knowledge base
+
+database:
+  path: ./lance_vex_kb
+  backup_dir: ~/Library/CloudStorage/ProtonDrive-kelvin@lomboy.email/Vex-RAG-Backups/
+
+indexing:
+  chunk_size: 384
+  chunk_overlap: 0.15
+  context_model: llama3.1:8b
+  embedding_model: nomic-embed-text:latest
+  enable_sanitization: true
+  auto_index_extensions:
+    - .md
+    - .pdf
+    - .txt
+  auto_index_paths:
+    - .claude/
+    - output/research/
+    - README.md
+    - CLAUDE.md
+
+retrieval:
+  default_top_k: 5
+  vector_limit: 20
+  bm25_limit: 20
+  fusion_limit: 10
+  enable_reranking: true
+  reranker_model: BAAI/bge-reranker-large
+
+projects_to_index:
+  - name: PAI
+    paths:
+      - .claude/
+      - output/research/
+      - README.md
+      - CLAUDE.md
+
+memory:
+  enabled: true
+  storage_path: .claude/memory/vex-memory.jsonl
+
+backup:
+  enabled: true
+  schedule: weekly
+  retention:
+    daily: 7
+    weekly: 4
+
+logging:
+  level: INFO
+  file: .claude/logs/rag.log
