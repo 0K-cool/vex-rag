@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI tools now use standard Python entry points instead of standalone scripts
 - Improved installation documentation (recommend `pip install -e .` after clone)
 
+### Security
+- **Privacy Improvements for Public Repository**
+  - Changed author email from personal to public-facing email (`0k.8csjy@8shield.net`)
+  - Replaced internal project names with generic equivalents for privacy:
+    - `VERSANT-IR` → `IR-Platform`
+    - `VERSANT-ATHENA` → `Pentest-Platform`
+    - `lance_athena_kb` → `lance_pentest_kb`
+  - Renamed `examples/config.athena.yml` → `examples/config.pentest.yml`
+  - Updated all example configurations, documentation, and Python docstrings with generic names
+  - Ensures repository is suitable for public consumption without exposing internal project details
+
 ## [1.0.0] - 2026-01-02
 
 ### Added
