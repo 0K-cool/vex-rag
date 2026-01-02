@@ -155,7 +155,7 @@ logging:
 See `examples/` directory for project-specific configurations:
 - `config.pai.yml` - Personal AI Infrastructure
 - `config.ir.yml` - Incident Response platform
-- `config.athena.yml` - Penetration testing platform
+- `config.pentest.yml` - Penetration testing platform
 
 ---
 
@@ -555,7 +555,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 Cybersecurity Consultant, Puerto Rico
 🦖⚡ Professional excellence meets island living
 
-**Email:** kelvin@lomboy.email
+**Email:** 0k.8csjy@8shield.net
 **Website:** https://0k.cool
 **GitHub:** https://github.com/0K-cool
 
