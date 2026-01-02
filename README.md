@@ -40,7 +40,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 ```bash
 # Clone or download plugin
 cd ~/tools
-git clone https://github.com/kelvinlomboy/vex-rag.git
+git clone https://github.com/0K-cool/vex-rag.git
 
 # Install plugin via Claude Code
 claude plugin install ~/tools/vex-rag
@@ -557,7 +557,7 @@ Cybersecurity Consultant, Puerto Rico
 
 **Email:** kelvin@lomboy.email
 **Website:** https://0k.cool
-**GitHub:** https://github.com/kelvinlomboy
+**GitHub:** https://github.com/0K-cool
 
 ---
 
@@ -579,9 +579,9 @@ Inspired by:
 
 ## Support
 
-**Documentation:** [GitHub](https://github.com/kelvinlomboy/vex-rag)
-**Issues:** [GitHub Issues](https://github.com/kelvinlomboy/vex-rag/issues)
-**Discussions:** [GitHub Discussions](https://github.com/kelvinlomboy/vex-rag/discussions)
+**Documentation:** [GitHub](https://github.com/0K-cool/vex-rag)
+**Issues:** [GitHub Issues](https://github.com/0K-cool/vex-rag/issues)
+**Discussions:** [GitHub Discussions](https://github.com/0K-cool/vex-rag/discussions)
 
 ---
 

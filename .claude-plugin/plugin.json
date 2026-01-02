@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "100% local RAG system with hybrid search, contextual chunking, and BGE reranking",
   "author": "Kelvin Lomboy",
-  "repository": "https://github.com/kelvinlomboy/vex-rag",
+  "repository": "https://github.com/0K-cool/vex-rag",
   "license": "MIT",
 
   "compatibleWith": {

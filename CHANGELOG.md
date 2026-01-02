@@ -174,7 +174,7 @@ This project follows [Semantic Versioning](https://semver.org/):
 
 ## Links
 
-- **Repository:** https://github.com/kelvinlomboy/vex-rag
-- **Issues:** https://github.com/kelvinlomboy/vex-rag/issues
-- **Documentation:** https://github.com/kelvinlomboy/vex-rag/blob/main/README.md
-- **Changelog:** https://github.com/kelvinlomboy/vex-rag/blob/main/CHANGELOG.md
+- **Repository:** https://github.com/0K-cool/vex-rag
+- **Issues:** https://github.com/0K-cool/vex-rag/issues
+- **Documentation:** https://github.com/0K-cool/vex-rag/blob/main/README.md
+- **Changelog:** https://github.com/0K-cool/vex-rag/blob/main/CHANGELOG.md
