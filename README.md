@@ -511,7 +511,7 @@ ruff check rag/
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
-**Current:** v1.0.0 (January 2026) - Initial plugin extraction
+**Current:** v1.0.1 (January 2026) - Bug fixes and privacy improvements
 
 ---
 
@@ -585,6 +585,6 @@ Inspired by:
 
 ---
 
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Last Updated:** January 2, 2026
 **100% Local Processing** - Zero Cloud APIs - Zero Cost
