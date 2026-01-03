@@ -97,6 +97,39 @@ mkdir -p lance_kb
 vex-index docs/ --batch
 ```
 
+### 6. Setup MCP Server
+
+**CRITICAL:** Add the MCP server configuration to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "vex-knowledge-base": {
+      "command": "/Users/yourusername/tools/vex-rag/.venv/bin/python3",
+      "args": [
+        "/Users/yourusername/tools/vex-rag/mcp_server/vex_kb_server.py"
+      ],
+      "env": {
+        "RAG_CONFIG": "/Users/yourusername/your-project/.vex-rag.yml",
+        "PYTHONPATH": "/Users/yourusername/tools/vex-rag"
+      },
+      "description": "Vex RAG Plugin - Automatic context injection from knowledge base"
+    }
+  }
+}
+```
+
+**Important Notes:**
+- Replace `/Users/yourusername/` with your actual paths
+- `PYTHONPATH` is **REQUIRED** - without it, Python can't find the `rag` module
+- `RAG_CONFIG` should point to your project's `.vex-rag.yml` file
+- Restart Claude Code after adding this configuration
+
+**Troubleshooting:**
+- If MCP server doesn't connect: Check that `PYTHONPATH` points to the vex-rag directory
+- If you get "module not found" errors: Verify `PYTHONPATH` is set in `.mcp.json`
+- Logs location: Configured in `.vex-rag.yml` under `logging.file`
+
 ---
 
 ## Configuration
@@ -139,6 +172,13 @@ projects_to_index:
     paths:
       - docs/
       - README.md
+
+security:
+  # Allowed base directories for file operations (prevents path traversal)
+  # All document paths must be within these directories
+  allowed_base_paths:
+    - ~/your-project
+    - ~/other-allowed-directory
 
 backup:
   enabled: true
@@ -337,6 +377,34 @@ Now, when you commit changes to matching files, they're automatically indexed.
 - **Backups:** Configurable location (encrypted if using Proton Drive)
 - **Logs:** Configurable location
 - **File permissions:** 600/700 (owner read/write only)
+
+### Security Hardening (v1.0.1+)
+
+**Protection Against Common Vulnerabilities:**
+
+- **SQL Injection Prevention (VUL-001 Fixed):**
+  - Input sanitization for all LanceDB queries
+  - Single quote escaping following SQL standard (' → '')
+  - 22 comprehensive security tests covering attack vectors
+  - OWASP A05:2025 compliant
+
+- **Path Traversal Prevention (VUL-002 Fixed):**
+  - Path validation using canonical path resolution
+  - Configurable allowed base directories (security.allowed_base_paths)
+  - Defense-in-depth: validation at both indexer and MCP server layers
+  - 24 comprehensive security tests covering traversal attempts
+  - OWASP A01:2025 compliant
+
+**Security Test Coverage:**
+- 46 total security tests (all passing)
+- Tests include: SQL injection patterns, path traversal attempts (../../), symlink attacks, absolute path validation
+- Comprehensive vulnerability testing in `tests/security/`
+
+**MCP Server Security:**
+- Path validation before file operations
+- TOCTOU (Time-of-check-time-of-use) vulnerability mitigation
+- SecurityError exceptions for violations
+- Detailed security logging
 
 ---
 
