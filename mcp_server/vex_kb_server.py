@@ -39,7 +39,7 @@ except ImportError:
 
 from rag.retrieval.pipeline import RetrievalPipeline
 from rag.indexing.document_loader import DocumentLoader
-from rag.indexing.indexer import KnowledgeBaseIndexer
+from rag.indexing.indexer import KnowledgeBaseIndexer, _validate_path, SecurityError
 from rag.indexing.sanitizer import Sanitizer
 
 # Load configuration
@@ -245,6 +245,16 @@ def index_document(
         if not path.is_absolute():
             # Assume relative to current project directory
             path = Path.cwd() / file_path
+
+        # Security: Validate path BEFORE loading file (VUL-002 fix)
+        # This prevents reading files outside allowed directories
+        try:
+            validated_path = _validate_path(str(path))
+            logger.info(f"Path validated: {validated_path}")
+        except SecurityError as e:
+            error_msg = f"Path validation failed: {e}"
+            logger.error(error_msg)
+            return f"ERROR: {error_msg}"
 
         if not path.exists():
             error_msg = f"File not found: {path}"
