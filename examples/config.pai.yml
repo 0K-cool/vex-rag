@@ -45,6 +45,14 @@ memory:
   enabled: true
   storage_path: .claude/memory/vex-memory.jsonl
 
+security:
+  # Allowed base directories for file operations (prevents path traversal)
+  # All document paths must be within these directories
+  allowed_base_paths:
+    - ~/Personal_AI_Infrastructure
+    - ~/Work/Vault/Work
+    - ~/VERSANT/Projects
+
 backup:
   enabled: true
   schedule: weekly

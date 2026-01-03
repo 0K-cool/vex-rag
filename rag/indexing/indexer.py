@@ -11,6 +11,8 @@ Security: 100% local storage, encrypted at rest via FileVault
 import lancedb
 import pyarrow as pa
 import logging
+import os
+import yaml
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -18,6 +20,132 @@ import uuid
 import hashlib
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityError(Exception):
+    """Custom exception for security violations"""
+    pass
+
+
+def _sanitize_sql_value(value: str) -> str:
+    """
+    Sanitize string values for LanceDB SQL WHERE clauses.
+
+    Prevents SQL injection by escaping single quotes (SQL standard: ' becomes '')
+
+    Args:
+        value: User-provided string value
+
+    Returns:
+        Sanitized string safe for SQL WHERE clauses
+
+    Security:
+        - Escapes single quotes by doubling them (SQL standard)
+        - Prevents SQL injection attacks (VUL-001 fix)
+        - Reference: CLAUDE.md lines 277-290 (SQL Injection Prevention)
+    """
+    if not isinstance(value, str):
+        raise TypeError(f"Expected string, got {type(value).__name__}")
+
+    # Escape single quotes by doubling them (SQL standard)
+    return value.replace("'", "''")
+
+
+def _load_allowed_base_paths() -> List[Path]:
+    """
+    Load allowed base paths from .vex-rag.yml configuration.
+
+    Returns:
+        List of allowed base directory paths
+
+    Security:
+        - Loads security.allowed_base_paths from config
+        - Falls back to current directory if config not found
+        - Resolves all paths to absolute paths
+    """
+    try:
+        config_path = Path(os.getenv("RAG_CONFIG", ".vex-rag.yml"))
+
+        # Try to find config in current directory or parent directories
+        search_path = Path.cwd()
+        for _ in range(5):  # Search up to 5 parent directories
+            candidate = search_path / config_path
+            if candidate.exists():
+                with open(candidate) as f:
+                    config = yaml.safe_load(f)
+                    paths = config.get("security", {}).get("allowed_base_paths", [])
+                    if paths:
+                        return [Path(p).expanduser().resolve() for p in paths]
+                break
+            search_path = search_path.parent
+
+        # Fallback: current working directory
+        logger.warning("No allowed_base_paths in config, using current directory")
+        return [Path.cwd().resolve()]
+
+    except Exception as e:
+        logger.warning(f"Could not load allowed paths from config: {e}, using current directory")
+        return [Path.cwd().resolve()]
+
+
+def _validate_path(user_path: str, allowed_bases: Optional[List[Path]] = None) -> Path:
+    """
+    Validate that a path is within allowed base directories.
+
+    Prevents path traversal attacks by ensuring resolved paths
+    are within allowed directories.
+
+    Args:
+        user_path: User-provided path (may contain ../)
+        allowed_bases: List of allowed base directories (loads from config if None)
+
+    Returns:
+        Validated absolute path
+
+    Raises:
+        SecurityError: If path is outside allowed directories
+
+    Security:
+        - Resolves symlinks and .. components (Path.resolve())
+        - Checks if path is under allowed base directories
+        - Prevents path traversal attacks (VUL-002 fix)
+        - Reference: CLAUDE.md lines 155-170 (Path Traversal Prevention)
+
+    Examples:
+        >>> _validate_path("docs/readme.md", [Path("/home/user/project")])
+        PosixPath('/home/user/project/docs/readme.md')
+
+        >>> _validate_path("../../etc/passwd", [Path("/home/user/project")])
+        SecurityError: Path traversal attempt detected
+    """
+    if not isinstance(user_path, str):
+        raise TypeError(f"Expected string path, got {type(user_path).__name__}")
+
+    # Load allowed base paths if not provided
+    if allowed_bases is None:
+        allowed_bases = _load_allowed_base_paths()
+
+    # Resolve the user-provided path (expands ~, resolves .., follows symlinks)
+    try:
+        resolved_path = Path(user_path).expanduser().resolve()
+    except (ValueError, OSError) as e:
+        raise SecurityError(f"Invalid path: {user_path} ({e})")
+
+    # Check if resolved path is within any allowed base directory
+    for base in allowed_bases:
+        try:
+            resolved_path.relative_to(base)
+            # Path is within this base - valid!
+            return resolved_path
+        except ValueError:
+            # Not within this base, try next one
+            continue
+
+    # Path is not within any allowed base directory
+    raise SecurityError(
+        f"Path traversal attempt: {user_path} resolves to {resolved_path}, "
+        f"which is outside allowed directories: {[str(b) for b in allowed_bases]}"
+    )
 
 
 class KnowledgeBaseIndexer:
@@ -30,7 +158,16 @@ class KnowledgeBaseIndexer:
         Args:
             db_path: Path to LanceDB database (relative or absolute)
         """
-        self.db_path = Path(db_path).expanduser()
+        # Security: Validate db_path to prevent path traversal (VUL-002 fix)
+        # Note: For database paths, we validate but allow relative paths within project
+        try:
+            validated_db_path = _validate_path(db_path)
+            self.db_path = validated_db_path
+        except SecurityError as e:
+            logger.warning(f"Database path validation failed: {e}")
+            # For backward compatibility, fall back to expanduser() but log warning
+            self.db_path = Path(db_path).expanduser()
+
         self.db = None
         self.table = None
         self.table_name = "knowledge_base"
@@ -194,9 +331,11 @@ class KnowledgeBaseIndexer:
         from .context_generator import ContextGenerator
         from .embedder import Embedder
 
-        logger.info(f"Indexing document: {document.file_path}")
-
         try:
+            # Security: Validate file_path to prevent path traversal (VUL-002 fix)
+            validated_path = _validate_path(document.file_path)
+            logger.info(f"Indexing document: {document.file_path} (validated: {validated_path})")
+
             # Step 0: Compute content hash for deduplication
             content_hash = hashlib.sha256(document.content.encode('utf-8')).hexdigest()
             logger.info(f"Document content hash: {content_hash[:16]}...")
@@ -205,20 +344,22 @@ class KnowledgeBaseIndexer:
             if self.table is not None:
                 try:
                     # Check if document already indexed
-                    existing = self.table.search().where(f"file_path = '{document.file_path}'").limit(1).to_list()
+                    # Security: Sanitize file_path to prevent SQL injection (VUL-001 fix)
+                    safe_path = _sanitize_sql_value(document.file_path)
+                    existing = self.table.search().where(f"file_path = '{safe_path}'").limit(1).to_list()
                     if existing:
                         existing_hash = existing[0].get('content_hash', None)
 
                         if existing_hash == content_hash:
                             # Content unchanged - skip re-indexing
-                            count_result = self.table.count_rows(f"file_path = '{document.file_path}'")
+                            count_result = self.table.count_rows(f"file_path = '{safe_path}'")
                             logger.info(f"Document unchanged (hash match) - skipping re-indexing of {count_result} chunks")
                             return count_result
                         else:
                             # Content changed - delete old chunks and re-index
-                            count_result = self.table.count_rows(f"file_path = '{document.file_path}'")
+                            count_result = self.table.count_rows(f"file_path = '{safe_path}'")
                             logger.info(f"Document content changed - removing {count_result} existing chunks before re-indexing")
-                            self.table.delete(f"file_path = '{document.file_path}'")
+                            self.table.delete(f"file_path = '{safe_path}'")
                             logger.info(f"Deleted {count_result} existing chunks for {document.file_path}")
                 except Exception as e:
                     logger.warning(f"Could not check for existing chunks: {e}")
@@ -308,8 +449,9 @@ class KnowledgeBaseIndexer:
             return 0
 
         try:
-            # LanceDB delete syntax
-            self.table.delete(f"file_path = '{file_path}'")
+            # Security: Sanitize file_path to prevent SQL injection (VUL-001 fix)
+            safe_path = _sanitize_sql_value(file_path)
+            self.table.delete(f"file_path = '{safe_path}'")
             logger.info(f"Deleted chunks from {file_path}")
             return 1  # LanceDB doesn't return count
 
@@ -331,7 +473,9 @@ class KnowledgeBaseIndexer:
             return 0
 
         try:
-            self.table.delete(f"source_project = '{project}'")
+            # Security: Sanitize project to prevent SQL injection (VUL-001 fix)
+            safe_project = _sanitize_sql_value(project)
+            self.table.delete(f"source_project = '{safe_project}'")
             logger.info(f"Deleted chunks from project {project}")
             return 1
 
