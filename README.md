@@ -22,7 +22,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 - ✅ **MCP server integration** - Automatic context injection into conversations
 - ✅ **Multi-project support** - Portable across projects via configuration
 - ✅ **PII sanitization** - Multi-layer sanitization (configurable)
-- ✅ **Auto-indexing** - Git post-commit hooks
+- ✅ **Auto-indexing** - Git post-commit hooks (optional, manual setup)
 - ✅ **Native citations** - Anthropic citations API support
 
 ---
@@ -243,16 +243,6 @@ Claude: [Automatically searches knowledge base and provides answer with sources]
 
 The MCP server runs transparently in the background. No manual search needed.
 
-### Slash Commands
-
-```bash
-# Search knowledge base
-/rag-search "git safety workflow"
-
-# Index new document
-/rag-index docs/new-feature.md
-```
-
 ### CLI Tools
 
 ```bash
@@ -340,8 +330,9 @@ Automatically index modified files after git commits:
 ### Installation
 
 ```bash
-# Copy hook to your project
-cp ~/.claude/plugins/vex-rag/hooks/post-commit.sh .git/hooks/post-commit
+# Copy hook to your project (if hook exists)
+cp ~/tools/vex-rag/hooks/post-commit.sh .git/hooks/post-commit 2>/dev/null || \
+  echo "Note: Hook not included in plugin. Create your own or see examples/"
 
 # Make executable
 chmod +x .git/hooks/post-commit
@@ -513,7 +504,7 @@ Example: 788 chunks = 3.2MB compressed (4KB per chunk avg)
 3. Check config: `.vex-rag.yml` → `indexing.auto_index_*`
 
 **Solutions:**
-- Hook missing: Copy from `~/.claude/plugins/vex-rag/hooks/post-commit.sh`
+- Hook missing: Create your own or check `~/tools/vex-rag/hooks/` (if included)
 - Hook not executable: `chmod +x .git/hooks/post-commit`
 - Config wrong: Update `auto_index_extensions` and `auto_index_paths`
 
@@ -608,37 +599,31 @@ ruff check rag/
 
 ## Version History
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for detailed version history and roadmap.
 
-**Current:** v1.0.1 (January 2026) - Bug fixes and privacy improvements
+**Current:** v1.1.0 (January 3, 2026) - Documentation clarification and truth in advertising
+
+**Recent Releases:**
+- v1.1.0 - Clarified plugin capabilities, fixed misleading documentation
+- v1.0.1 - CLI portability fixes, privacy improvements
+- v1.0.0 - Initial public release
 
 ---
 
 ## Roadmap
 
-**v1.1.0 - Multi-Modal Support:**
-- Image indexing (screenshots, diagrams)
-- OCR for scanned documents
-- Audio transcription support
-- Video content extraction
+See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for complete roadmap and planned features.
 
-**v1.2.0 - Advanced Query Features:**
-- Query expansion/rewriting
-- Agentic retrieval (iterative multi-step searches)
-- Parent-child chunking (retrieve parent context)
-- Time-based filtering
+**Short-term (v1.2.0):**
+- Implement `/rag-search` and `/rag-index` slash commands
+- Create portable git hook package
+- Improve installation UX
 
-**v1.3.0 - Testing & Observability:**
-- End-to-end test suite
-- Performance benchmarking
-- Metrics/observability dashboard
-- Retry logic for transient failures
-
-**v2.0.0 - Enterprise Features:**
-- Multi-user support
-- Access control per project
-- Audit logging
-- Cost tracking per query
+**Long-term (v2.0.0+):**
+- Full Claude Code plugin integration
+- Multi-modal support (images, audio, video)
+- Advanced query features (query expansion, agentic retrieval)
+- Enterprise features (multi-user, access control)
 
 ---
 
@@ -684,6 +669,6 @@ Inspired by:
 
 ---
 
-**Version:** 1.0.1
-**Last Updated:** January 2, 2026
+**Version:** 1.1.0
+**Last Updated:** January 3, 2026
 **100% Local Processing** - Zero Cloud APIs - Zero Cost
