@@ -1,7 +1,7 @@
 {
   "name": "vex-rag",
-  "version": "1.0.0",
-  "description": "100% local RAG system with hybrid search, contextual chunking, and BGE reranking",
+  "version": "1.1.0",
+  "description": "100% local RAG system - Python library + MCP server + CLI tools",
   "author": "Kelvin Lomboy",
   "repository": "https://github.com/0K-cool/vex-rag",
   "license": "MIT",
@@ -17,36 +17,10 @@
       "command": "python3",
       "args": ["-m", "mcp_server.vex_kb_server"],
       "env": {
-        "RAG_CONFIG": "{project}/.vex-rag.yml"
-      }
-    }
-  ],
-
-  "commands": [
-    {
-      "name": "rag-search",
-      "description": "Search the RAG knowledge base",
-      "file": "commands/search.md"
-    },
-    {
-      "name": "rag-index",
-      "description": "Index documents into the knowledge base",
-      "file": "commands/index.md"
-    }
-  ],
-
-  "agents": [
-    {
-      "name": "rag-maintenance",
-      "description": "RAG system maintenance and troubleshooting",
-      "file": "agents/rag-maintenance.md"
-    }
-  ],
-
-  "hooks": [
-    {
-      "event": "post-commit",
-      "script": "hooks/post-commit.sh"
+        "RAG_CONFIG": "{project}/.vex-rag.yml",
+        "PYTHONPATH": "{plugin_dir}"
+      },
+      "description": "Automatic context injection from local knowledge base"
     }
   ],
 
@@ -62,5 +36,20 @@
     "optional": [
       "lance_vex_kb/"
     ]
-  }
+  },
+
+  "features": {
+    "mcpServer": true,
+    "cliTools": true,
+    "pythonLibrary": true,
+    "slashCommands": false,
+    "hooks": false,
+    "agents": false
+  },
+
+  "notes": [
+    "CLI tools (vex-search, vex-index) installed via pip",
+    "MCP server requires manual configuration in project .mcp.json",
+    "See PLUGIN-STATUS.md for roadmap and planned features"
+  ]
 }

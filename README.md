@@ -2,7 +2,7 @@
 
 > 100% local RAG system with hybrid search, contextual chunking, and BGE reranking
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Author:** Kelvin Lomboy
 **License:** MIT
 
@@ -10,7 +10,7 @@
 
 ## What is Vex RAG?
 
-A production-ready Retrieval-Augmented Generation (RAG) system designed for **100% local processing** with zero cloud APIs and zero cost. Built as a portable Claude Code Plugin that can be installed in any project with a single command.
+A production-ready Retrieval-Augmented Generation (RAG) system designed for **100% local processing** with zero cloud APIs and zero cost. Distributed as a Python library with MCP server integration and CLI tools for seamless integration with Claude Code.
 
 ### Key Features
 
@@ -35,34 +35,36 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 - **Ollama** installed and running
 - **Claude Code CLI** (latest version)
 
-### 1. Install Plugin
+### 1. Clone Repository
 
 ```bash
-# Clone or download plugin
+# Clone to tools directory
 cd ~/tools
 git clone https://github.com/0K-cool/vex-rag.git
-
-# Install plugin via Claude Code
-claude plugin install ~/tools/vex-rag
+cd vex-rag
 ```
 
-### 2. Install Python Dependencies
+### 2. Install Python Package
 
 ```bash
-cd ~/tools/vex-rag
-
 # Create virtual environment
 python3 -m venv .venv
 
 # Activate virtual environment
 source .venv/bin/activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install vex-rag package (editable mode)
+pip install -e .
 
 # Install spaCy model for PII detection
 python -m spacy download en_core_web_sm
 ```
+
+**What Gets Installed:**
+- ✅ Python `rag` module (importable library)
+- ✅ CLI tools: `vex-search`, `vex-index` (added to PATH)
+- ✅ MCP server: `mcp_server/vex_kb_server.py`
+- ✅ All dependencies from `pyproject.toml`
 
 ### 3. Pull Required Ollama Models
 
@@ -81,9 +83,10 @@ ollama pull nomic-embed-text
 cd ~/your-project
 
 # Copy example configuration
-cp ~/.claude/plugins/vex-rag/examples/config.pai.yml .vex-rag.yml
+cp ~/tools/vex-rag/examples/config.pai.yml .vex-rag.yml
 
 # Edit configuration for your project
+# At minimum: update project.name and security.allowed_base_paths
 vim .vex-rag.yml
 ```
 
@@ -129,6 +132,34 @@ vex-index docs/ --batch
 - If MCP server doesn't connect: Check that `PYTHONPATH` points to the vex-rag directory
 - If you get "module not found" errors: Verify `PYTHONPATH` is set in `.mcp.json`
 - Logs location: Configured in `.vex-rag.yml` under `logging.file`
+
+### ✅ Installation Complete!
+
+After completing these steps, you have:
+
+**CLI Tools:**
+```bash
+vex-search "your query here"              # Search knowledge base
+vex-index document.md --project MyProject # Index documents
+```
+
+**MCP Server:**
+- Automatic context injection in Claude Code conversations
+- Use `vex://search/{query}` resource or ask questions naturally
+- Tools: `index_document`, `get_kb_stats`
+
+**Python Library:**
+```python
+from rag.indexing import KnowledgeBaseIndexer
+from rag.retrieval import RetrievalPipeline
+# Use in your own Python scripts
+```
+
+**Next Steps:**
+1. Start Claude Code in your project directory
+2. Verify MCP server loads (check session banner)
+3. Ask Claude: "Search the knowledge base for X"
+4. Index more documents as needed
 
 ---
 
