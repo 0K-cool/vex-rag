@@ -2,7 +2,7 @@
 
 > 100% local RAG system with hybrid search, contextual chunking, and BGE reranking
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Author:** Kelvin Lomboy
 **License:** MIT
 
@@ -10,7 +10,7 @@
 
 ## What is Vex RAG?
 
-A production-ready Retrieval-Augmented Generation (RAG) system designed for **100% local processing** with zero cloud APIs and zero cost. Distributed as a Python library with MCP server integration and CLI tools for seamless integration with Claude Code.
+A production-ready Retrieval-Augmented Generation (RAG) system designed for **100% local processing** with zero cloud APIs and zero cost. Distributed as a Python library with MCP server integration, slash commands, and CLI tools for seamless integration with Claude Code.
 
 ### Key Features
 
@@ -20,6 +20,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 - ✅ **Reciprocal Rank Fusion** - Combines vector + BM25 rankings
 - ✅ **BGE reranking** - Local reranking (Apple Silicon GPU optimized)
 - ✅ **MCP server integration** - Automatic context injection into conversations
+- ✅ **Slash commands** - `/rag-search` and `/rag-index` for manual control
 - ✅ **Multi-project support** - Portable across projects via configuration
 - ✅ **PII sanitization** - Multi-layer sanitization (configurable)
 - ✅ **Auto-indexing** - Git post-commit hooks (optional, manual setup)
@@ -242,6 +243,32 @@ Claude: [Automatically searches knowledge base and provides answer with sources]
 ```
 
 The MCP server runs transparently in the background. No manual search needed.
+
+### Slash Commands (In Conversation)
+
+For manual control during conversations, use slash commands:
+
+```
+# Search knowledge base manually
+/rag-search "your query here"
+
+# Index a document manually
+/rag-index path/to/document.md
+/rag-index path/to/document.pdf --no-sanitize
+```
+
+**Examples:**
+```
+/rag-search "git safety protocols"
+/rag-search "how to use vex-rag"
+/rag-index docs/new-feature.md
+/rag-index ~/Downloads/report.pdf
+```
+
+**When to use:**
+- MCP server provides automatic retrieval (preferred)
+- Slash commands for manual verification or explicit control
+- Useful for debugging or checking what's indexed
 
 ### CLI Tools
 
@@ -601,9 +628,10 @@ ruff check rag/
 
 See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for detailed version history and roadmap.
 
-**Current:** v1.1.0 (January 3, 2026) - Documentation clarification and truth in advertising
+**Current:** v1.2.0 (January 3, 2026) - Slash commands implementation
 
 **Recent Releases:**
+- v1.2.0 - Added `/rag-search` and `/rag-index` slash commands
 - v1.1.0 - Clarified plugin capabilities, fixed misleading documentation
 - v1.0.1 - CLI portability fixes, privacy improvements
 - v1.0.0 - Initial public release
@@ -614,10 +642,10 @@ See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for detailed version history and roadma
 
 See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for complete roadmap and planned features.
 
-**Short-term (v1.2.0):**
-- Implement `/rag-search` and `/rag-index` slash commands
+**Short-term (v1.3.0):**
 - Create portable git hook package
 - Improve installation UX
+- Enhanced PII sanitization options
 
 **Long-term (v2.0.0+):**
 - Full Claude Code plugin integration
@@ -669,6 +697,6 @@ Inspired by:
 
 ---
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Last Updated:** January 3, 2026
 **100% Local Processing** - Zero Cloud APIs - Zero Cost

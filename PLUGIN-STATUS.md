@@ -1,7 +1,7 @@
 # Vex RAG Plugin - Status & Roadmap
 
 **Last Updated:** January 3, 2026
-**Current Version:** 1.1.0
+**Current Version:** 1.2.0
 **Maintainer:** Kelvin Lomboy (@0K-cool)
 
 ---
@@ -11,14 +11,15 @@
 Vex RAG is a **100% local RAG system** distributed as:
 1. **Python library** (`rag` module)
 2. **MCP server** (automatic context injection)
-3. **CLI tools** (`vex-search`, `vex-index`)
+3. **Slash commands** (`/rag-search`, `/rag-index`)
+4. **CLI tools** (`vex-search`, `vex-index`)
 
-**Architecture Model:** Library + MCP Server + CLI Tools
-**Not:** Full-featured Claude Code plugin (yet)
+**Architecture Model:** Library + MCP Server + Slash Commands + CLI Tools
+**Status:** Full-featured Claude Code plugin
 
 ---
 
-## ✅ Current Features (v1.1.0)
+## ✅ Current Features (v1.2.0)
 
 ### Core Functionality (Production-Ready)
 
@@ -47,6 +48,12 @@ Vex RAG is a **100% local RAG system** distributed as:
 - ✅ Installed to system PATH via pip
 - ✅ Full help documentation (`--help`)
 
+**Slash Commands:**
+- ✅ `/rag-search` - Search knowledge base from within conversations
+- ✅ `/rag-index` - Index documents from within conversations
+- ✅ Full command documentation
+- ✅ Integrated with CLI tools (same backend)
+
 **Testing & Quality:**
 - ✅ 46 security tests (SQL injection + path traversal)
 - ✅ 100% test pass rate
@@ -64,12 +71,6 @@ Vex RAG is a **100% local RAG system** distributed as:
 ## ⚠️ Not Yet Implemented
 
 ### Planned Features (Future Versions)
-
-**Slash Commands:**
-- ❌ `/rag-search` - Search via Claude Code slash command
-- ❌ `/rag-index` - Index via Claude Code slash command
-- Status: Not implemented (command files don't exist)
-- Priority: Medium (nice-to-have, CLI tools provide same functionality)
 
 **Subagents:**
 - ❌ `rag-maintenance` - Portable subagent for RAG operations
@@ -105,8 +106,8 @@ Vex RAG is a **100% local RAG system** distributed as:
 - ✅ **Pro:** Core functionality is rock-solid and tested
 - ✅ **Pro:** Installation is standard Python workflow
 - ✅ **Pro:** No dependence on evolving plugin architecture
+- ✅ **Pro:** Slash commands for in-conversation control
 - ⚠️ **Con:** More manual setup (MCP config in `.mcp.json`)
-- ⚠️ **Con:** No slash commands (use CLI tools instead)
 
 **Future Path:**
 When Claude Code's plugin system matures and patterns emerge, we can revisit full plugin integration. For now, the current model provides **100% of the value** with **less complexity**.
@@ -118,9 +119,9 @@ When Claude Code's plugin system matures and patterns emerge, we can revisit ful
 | Feature | Status | Alternative |
 |---------|--------|-------------|
 | **Automatic context injection** | ✅ MCP resource | N/A (core feature) |
-| **Search knowledge base** | ✅ CLI `vex-search` | Slash command (planned) |
-| **Index documents** | ✅ CLI `vex-index` | Slash command (planned) |
-| **Get KB stats** | ✅ MCP tool | Slash command (planned) |
+| **Search knowledge base** | ✅ `/rag-search` slash command | CLI `vex-search` |
+| **Index documents** | ✅ `/rag-index` slash command | CLI `vex-index` |
+| **Get KB stats** | ✅ MCP tool `get_kb_stats()` | N/A |
 | **Python library** | ✅ `import rag` | N/A (core feature) |
 | **Auto-indexing** | ⚠️ Manual setup | Portable hook (planned) |
 | **Maintenance tasks** | ⚠️ Project skill | Portable subagent (planned) |
@@ -134,18 +135,23 @@ When Claude Code's plugin system matures and patterns emerge, we can revisit ful
 
 ## 🚀 Roadmap
 
-### v1.1.0 (Current - January 2026)
+### v1.2.0 (Current - January 2026)
+- ✅ Implement `/rag-search` slash command
+- ✅ Implement `/rag-index` slash command
+- ✅ Add slash commands to plugin manifest
+- ✅ Update documentation for slash commands
+
+### v1.1.0 (Released - January 2026)
 - ✅ Clarify plugin capabilities
 - ✅ Remove misleading `claude plugin install` reference
 - ✅ Document actual installation workflow
 - ✅ Security hardening complete (VUL-001, VUL-002)
 - ✅ 46 security tests passing
 
-### v1.2.0 (Planned - Q1 2026)
-- [ ] Implement `/rag-search` slash command
-- [ ] Implement `/rag-index` slash command
+### v1.3.0 (Planned - Q1 2026)
 - [ ] Create portable git hook package
 - [ ] Improve installation UX
+- [ ] Enhanced PII sanitization options
 
 ### v2.0.0 (Future - TBD)
 - [ ] Full Claude Code plugin integration
@@ -225,6 +231,7 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 
 **Use this as a model for:**
 - ✅ MCP server implementation (FastMCP, clean architecture)
+- ✅ Slash command implementation (command files in `.claude-plugin/commands/`)
 - ✅ Configuration management (YAML-based, per-project)
 - ✅ Security hardening (path traversal, SQL injection prevention)
 - ✅ Python packaging (`pyproject.toml`, entry points)
@@ -232,7 +239,6 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 - ✅ Testing approach (security tests, integration tests)
 
 **Don't expect:**
-- ❌ Slash command implementation (not done yet)
 - ❌ Portable hooks (project-specific)
 - ❌ Subagent packaging (project-specific)
 - ❌ One-command installation (manual setup required)
@@ -240,6 +246,13 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 ---
 
 ## 📝 Version History
+
+### v1.2.0 (January 3, 2026)
+- Implemented `/rag-search` and `/rag-index` slash commands
+- Added commands to plugin manifest (`plugin.json`)
+- Updated README with slash commands documentation
+- Updated feature comparison table
+- Slash commands integrated with existing CLI tools
 
 ### v1.1.0 (January 3, 2026)
 - Clarified plugin capabilities in `plugin.json`
@@ -273,10 +286,10 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 4. Suggest features with clear use cases
 
 **Major contributions welcome for:**
-- Slash command implementation
 - Portable hook packaging
 - Installation UX improvements
 - Additional security tests
+- Multi-modal support (images, audio, video)
 
 ---
 
@@ -291,4 +304,4 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 
 ---
 
-**TL;DR:** Vex RAG is a **production-ready library + MCP server + CLI tools** for 100% local RAG. Not a full-featured Claude Code plugin (yet), but works great as-is. Install via pip, configure per-project, enjoy automatic context injection in Claude Code conversations.
+**TL;DR:** Vex RAG is a **production-ready library + MCP server + slash commands + CLI tools** for 100% local RAG. Full-featured Claude Code plugin with automatic context injection and manual controls. Install via pip, configure per-project, enjoy seamless RAG in conversations.

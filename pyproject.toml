@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vex-rag"
-version = "1.1.0"
-description = "100% local RAG system - Python library + MCP server + CLI tools"
+version = "1.2.0"
+description = "100% local RAG system - Python library + MCP server + CLI tools + slash commands"
 authors = [
     {name = "Kelvin Lomboy", email = "0k.8csjy@8shield.net"}
 ]
