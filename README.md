@@ -315,6 +315,157 @@ vex://search/{query}
 
 ---
 
+## Observability (Optional)
+
+Vex RAG includes **optional** performance monitoring and cost tracking. This feature is:
+- ✅ **100% local** - logs stored locally, never sent to cloud
+- ✅ **Zero-config** - works automatically once installed
+- ✅ **Portable** - bundled with plugin, works anywhere
+- ✅ **Gracefully degrades** - RAG works with or without it
+
+### What Gets Tracked
+
+**RAG Search Operations:**
+- Latency (ms) - how long searches take
+- Tokens retrieved - context size in tokens
+- Chunk count - number of results returned
+- Query preview - first 30 characters (privacy-safe)
+
+**RAG Index Operations:**
+- Latency (ms) - how long indexing takes
+- Chunk count - number of chunks created
+- File path - document being indexed
+
+### How It Works
+
+Vex RAG checks two locations for observability scripts:
+
+1. **Project's `.claude/scripts/` directory** (if installed locally)
+2. **Plugin's `observability-scripts/` directory** (bundled fallback)
+
+If neither location has scripts, observability is disabled automatically. RAG operations continue to work normally.
+
+### Installation (Two Options)
+
+#### Option 1: Use Bundled Scripts (No Installation)
+
+The plugin includes observability scripts. They work automatically without any installation:
+
+```bash
+# RAG operations will use plugin's bundled scripts
+vex-search "your query" --config .vex-rag.yml
+# ✅ Logs written to plugin's observability-scripts/ location
+```
+
+**Pros:** Zero setup, works immediately
+**Cons:** Logs stored in plugin directory (not project-specific)
+
+#### Option 2: Install to Project (Recommended)
+
+Install observability to your project for project-specific logs:
+
+```bash
+# Navigate to your project
+cd ~/Personal_AI_Infrastructure
+
+# Run installation helper
+~/tools/vex-rag/observability-scripts/install-observability.sh
+
+# ✅ Creates .claude/scripts/ with observability infrastructure
+# ✅ Creates .claude/logs/ for project-specific tracking
+```
+
+**Pros:** Project-specific logs, easier analysis
+**Cons:** Requires one-time installation per project
+
+### Usage
+
+Once installed, RAG operations automatically log metrics:
+
+```bash
+# Search operation (logged automatically)
+vex-search "git safety protocols" --config .vex-rag.yml
+# → Logs latency, tokens, chunks to .claude/logs/
+
+# Index operation (logged automatically)
+vex-index docs/new-feature.md --config .vex-rag.yml
+# → Logs latency, chunk count to .claude/logs/
+```
+
+### Health Dashboard
+
+Check system health and error rates:
+
+```bash
+# 24-hour health summary
+./.claude/scripts/vex-health-check.sh --period=24h
+
+# Output:
+# 🏥 Health Status: 🟢 EXCELLENT (Grade: A+)
+# 📊 Error Statistics:
+#    Errors:     0
+#    Warnings:   0
+#    Total Ops:  15
+#    Error Rate: 0.00%
+```
+
+### Reports
+
+Generate monthly reports for cost tracking and performance analysis:
+
+```bash
+# Token usage and cost report
+./.claude/scripts/vex-token-report.sh 2026-01
+
+# Latency performance report
+./.claude/scripts/vex-latency-report.sh 2026-01
+
+# Error analysis report
+./.claude/scripts/vex-error-report.sh 2026-01
+```
+
+### Log Files
+
+Observability creates three log types:
+
+```bash
+# Token usage and cost tracking
+.claude/logs/token-usage.jsonl
+
+# Error and warning logs
+.claude/logs/errors.jsonl
+
+# Operation latency traces (per-conversation)
+.claude/logs/traces/*.jsonl
+```
+
+**Log Format:** JSONL (JSON Lines) - one JSON object per line for atomic appends
+
+### Privacy & Security
+
+- **Query sanitization:** Only first 30 characters logged
+- **Local storage:** Logs never sent to cloud services
+- **File permissions:** Logs are owner-read/write only (600)
+- **PII protection:** Metadata sanitized before logging
+
+### Disabling Observability
+
+To disable observability completely:
+
+```bash
+# Simply don't run the installation script
+# RAG will detect missing scripts and disable automatically
+```
+
+Or remove installed scripts:
+
+```bash
+rm -rf .claude/scripts/
+rm -rf .claude/logs/
+```
+
+---
+
 ## Indexing Pipeline
 
 When you index a document, it goes through:

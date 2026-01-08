@@ -18,8 +18,16 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import uuid
 import hashlib
+import time
 
 logger = logging.getLogger(__name__)
+
+# Phase 2.5: Observability Framework integration
+try:
+    from rag.utils.observability import RAGObservability
+except ImportError:
+    # Graceful degradation if observability module not available
+    RAGObservability = None
 
 
 class SecurityError(Exception):
@@ -327,6 +335,11 @@ class KnowledgeBaseIndexer:
         Returns:
             Number of chunks successfully indexed
         """
+        # Phase 2.5: Start observability tracking
+        start_time = time.time()
+        trace_id = str(uuid.uuid4())
+        obs = RAGObservability() if RAGObservability else None
+
         from .chunker import SmartChunker
         from .context_generator import ContextGenerator
         from .embedder import Embedder
@@ -401,6 +414,21 @@ class KnowledgeBaseIndexer:
             )
 
             logger.info(f"Successfully indexed {chunk_count} chunks from {document.file_path}")
+
+            # Phase 2.5: Log indexing operation
+            if obs and obs.enabled:
+                try:
+                    latency_ms = int((time.time() - start_time) * 1000)
+                    obs.log_index_operation(
+                        file_path=document.file_path,
+                        num_chunks=chunk_count,
+                        latency_ms=latency_ms,
+                        trace_id=trace_id
+                    )
+                except Exception as log_err:
+                    # Graceful degradation - don't fail indexing due to logging
+                    logger.debug(f"Observability logging failed: {log_err}")
+
             return chunk_count
 
         except Exception as e:

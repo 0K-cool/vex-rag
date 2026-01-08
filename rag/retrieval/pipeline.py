@@ -14,8 +14,17 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Optional
 import logging
+import time
+import uuid
 
 logger = logging.getLogger(__name__)
+
+# Phase 2.5: Observability Framework integration
+try:
+    from rag.utils.observability import RAGObservability
+except ImportError:
+    # Graceful degradation if observability module not available
+    RAGObservability = None
 
 from rag.indexing.indexer import KnowledgeBaseIndexer
 from rag.indexing.embedder import Embedder
@@ -92,6 +101,11 @@ class RetrievalPipeline:
         Returns:
             List of top-k most relevant chunks with scores and metadata
         """
+        # Phase 2.5: Start observability tracking
+        start_time = time.time()
+        trace_id = str(uuid.uuid4())
+        obs = RAGObservability() if RAGObservability else None
+
         if verbose:
             logger.info(f"Retrieving: '{query}'")
             print()
@@ -173,6 +187,31 @@ class RetrievalPipeline:
             print()
             logger.info(f"Retrieved {len(final_results)} final results")
             print()
+
+        # Phase 2.5: Calculate metrics and log operation
+        if obs and obs.enabled:
+            try:
+                latency_ms = int((time.time() - start_time) * 1000)
+                num_chunks = len(final_results)
+
+                # Estimate tokens in retrieved context (rough: words / 0.75)
+                tokens_retrieved = 0
+                for result in final_results:
+                    text = result.get('original_chunk', '')
+                    word_count = len(text.split())
+                    tokens_retrieved += int(word_count / 0.75)
+
+                # Log search operation
+                obs.log_search_operation(
+                    query=query,
+                    num_chunks=num_chunks,
+                    latency_ms=latency_ms,
+                    tokens_retrieved=tokens_retrieved,
+                    trace_id=trace_id
+                )
+            except Exception as e:
+                # Graceful degradation - don't fail retrieval due to logging
+                logger.debug(f"Observability logging failed: {e}")
 
         return final_results
 
