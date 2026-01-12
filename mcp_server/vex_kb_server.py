@@ -90,14 +90,25 @@ LOG_FILE = config.get('logging', {}).get('file', '.claude/logs/rag.log')
 log_file_path = Path(LOG_FILE)
 log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+# Create file handler for all logging
+file_handler = logging.FileHandler(log_file_path)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# Configure root logger with ONLY file handler (no stderr)
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file_path)
-        # Removed StreamHandler(sys.stderr) - causes "MCP server failed" on shutdown
-    ]
+    handlers=[file_handler]
 )
+
+# CRITICAL: Suppress FastMCP's stderr logging
+# FastMCP uses RichHandler(stderr=True) internally which causes "MCP server failed"
+# We must explicitly configure these loggers to prevent stderr output
+for logger_name in ['mcp', 'mcp.server', 'mcp.server.lowlevel', 'mcp.server.fastmcp', 'FastMCP']:
+    mcp_logger = logging.getLogger(logger_name)
+    mcp_logger.handlers = [file_handler]  # Replace any existing handlers with file-only
+    mcp_logger.propagate = False  # Don't propagate to root (which might have stderr handlers)
+
 logger = logging.getLogger('vex_kb_server')
 logger.info(f"Vex RAG MCP Server starting for project: {PROJECT_NAME}")
 logger.info(f"Configuration loaded from: {os.getenv('RAG_CONFIG', '.vex-rag.yml')}")
