@@ -101,14 +101,6 @@ logging.basicConfig(
     handlers=[file_handler]
 )
 
-# CRITICAL: Suppress FastMCP's stderr logging
-# FastMCP uses RichHandler(stderr=True) internally which causes "MCP server failed"
-# We must explicitly configure these loggers to prevent stderr output
-for logger_name in ['mcp', 'mcp.server', 'mcp.server.lowlevel', 'mcp.server.fastmcp', 'FastMCP']:
-    mcp_logger = logging.getLogger(logger_name)
-    mcp_logger.handlers = [file_handler]  # Replace any existing handlers with file-only
-    mcp_logger.propagate = False  # Don't propagate to root (which might have stderr handlers)
-
 logger = logging.getLogger('vex_kb_server')
 logger.info(f"Vex RAG MCP Server starting for project: {PROJECT_NAME}")
 logger.info(f"Configuration loaded from: {os.getenv('RAG_CONFIG', '.vex-rag.yml')}")
@@ -116,7 +108,19 @@ logger.info(f"Database path: {DB_PATH}")
 logger.info(f"Reranking: {'enabled' if ENABLE_RERANKING else 'disabled'}")
 
 # Initialize MCP server
+# NOTE: FastMCP.__init__ calls configure_logging() which adds RichHandler(stderr=True)
 mcp = FastMCP(f"Vex Knowledge Base ({PROJECT_NAME})")
+
+# CRITICAL: Suppress FastMCP's stderr logging AFTER FastMCP initialization
+# FastMCP.__init__ calls configure_logging() which adds RichHandler(stderr=True)
+# This causes Claude Code to interpret any output as "MCP server failed"
+# We MUST reconfigure these loggers AFTER FastMCP is initialized
+for logger_name in ['mcp', 'mcp.server', 'mcp.server.lowlevel', 'mcp.server.fastmcp', 'FastMCP']:
+    mcp_logger = logging.getLogger(logger_name)
+    mcp_logger.handlers = [file_handler]  # Replace RichHandler with file-only
+    mcp_logger.propagate = False  # Don't propagate to root logger
+
+logger.info("FastMCP stderr logging suppressed (file-only logging enabled)")
 
 # Initialize retrieval pipeline (lazy-loaded on first use)
 _pipeline: Optional[RetrievalPipeline] = None
