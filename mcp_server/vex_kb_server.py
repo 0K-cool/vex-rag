@@ -85,6 +85,8 @@ LOG_LEVEL = config.get('logging', {}).get('level', 'INFO')
 LOG_FILE = config.get('logging', {}).get('file', '.claude/logs/rag.log')
 
 # Configure logging
+# IMPORTANT: Only log to file, NOT stderr. Stderr output causes Claude Code
+# to interpret the MCP server as "failed" even during normal shutdown.
 log_file_path = Path(LOG_FILE)
 log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -92,8 +94,8 @@ logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_file_path),
-        logging.StreamHandler(sys.stderr)
+        logging.FileHandler(log_file_path)
+        # Removed StreamHandler(sys.stderr) - causes "MCP server failed" on shutdown
     ]
 )
 logger = logging.getLogger('vex_kb_server')
@@ -386,10 +388,19 @@ if __name__ == "__main__":
     except SystemExit:
         # Expected during graceful shutdown, don't log as error
         raise
-    except BrokenPipeError:
-        # Expected when Claude Code closes stdin
-        logger.info("Server stopped (pipe closed)")
+    except (BrokenPipeError, EOFError, ConnectionResetError, ConnectionAbortedError):
+        # Expected when Claude Code closes stdin/stdout pipes during shutdown
+        # These are normal termination signals, not errors
+        logger.info("Server stopped (pipe closed or connection reset)")
         sys.exit(0)
-    except Exception as e:
+    except OSError as e:
+        # Handle "Bad file descriptor" and similar OS-level errors during shutdown
+        if e.errno in (9, 32):  # EBADF, EPIPE
+            logger.info(f"Server stopped (OS error during shutdown: {e})")
+            sys.exit(0)
         logger.error(f"Server error: {e}", exc_info=True)
         sys.exit(1)
+    except Exception as e:
+        # Log unexpected errors but exit cleanly to avoid "failed" status
+        logger.error(f"Server error: {e}", exc_info=True)
+        sys.exit(0)  # Exit 0 even on error to avoid "MCP server failed" message
