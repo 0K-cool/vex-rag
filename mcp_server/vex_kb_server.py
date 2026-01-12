@@ -19,6 +19,7 @@ Tools:
 """
 
 import sys
+import signal
 import logging
 import json
 import os
@@ -107,6 +108,49 @@ mcp = FastMCP(f"Vex Knowledge Base ({PROJECT_NAME})")
 # Initialize retrieval pipeline (lazy-loaded on first use)
 _pipeline: Optional[RetrievalPipeline] = None
 _indexer: Optional[KnowledgeBaseIndexer] = None
+
+# Graceful shutdown handling
+_shutdown_requested = False
+
+def graceful_shutdown(signum, frame):
+    """Handle shutdown signals gracefully"""
+    global _shutdown_requested, _pipeline, _indexer
+
+    if _shutdown_requested:
+        # Already shutting down, force exit
+        logger.info("Forced shutdown")
+        sys.exit(0)
+
+    _shutdown_requested = True
+    signal_name = signal.Signals(signum).name if signum else "UNKNOWN"
+    logger.info(f"Received {signal_name} - initiating graceful shutdown...")
+
+    # Cleanup resources
+    try:
+        if _pipeline is not None:
+            logger.info("Closing retrieval pipeline...")
+            # Pipeline cleanup if needed
+            _pipeline = None
+
+        if _indexer is not None:
+            logger.info("Closing indexer...")
+            # Indexer cleanup if needed
+            _indexer = None
+
+        logger.info("Vex Knowledge Base MCP Server shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, graceful_shutdown)
+signal.signal(signal.SIGINT, graceful_shutdown)
+# SIGHUP for terminal hangup (when Claude Code exits)
+if hasattr(signal, 'SIGHUP'):
+    signal.signal(signal.SIGHUP, graceful_shutdown)
+
+logger.info("Signal handlers registered for graceful shutdown")
 
 
 def get_pipeline() -> RetrievalPipeline:
@@ -317,6 +361,18 @@ def get_kb_stats() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
+    import atexit
+
+    def cleanup_on_exit():
+        """Cleanup handler for atexit (fallback for graceful shutdown)"""
+        global _pipeline, _indexer
+        if _pipeline is not None or _indexer is not None:
+            logger.info("Atexit cleanup triggered")
+            _pipeline = None
+            _indexer = None
+
+    atexit.register(cleanup_on_exit)
+
     logger.info(f"Starting Vex Knowledge Base MCP Server for {PROJECT_NAME}...")
     logger.info(f"Python path: {sys.path}")
     logger.info(f"Working directory: {Path.cwd()}")
@@ -325,7 +381,15 @@ if __name__ == "__main__":
         # Run the MCP server (stdio transport)
         mcp.run()
     except KeyboardInterrupt:
-        logger.info("Server stopped by user")
+        logger.info("Server stopped by user (KeyboardInterrupt)")
+        sys.exit(0)
+    except SystemExit:
+        # Expected during graceful shutdown, don't log as error
+        raise
+    except BrokenPipeError:
+        # Expected when Claude Code closes stdin
+        logger.info("Server stopped (pipe closed)")
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Server error: {e}", exc_info=True)
         sys.exit(1)
