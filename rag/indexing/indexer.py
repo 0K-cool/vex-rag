@@ -35,6 +35,16 @@ class SecurityError(Exception):
     pass
 
 
+# RAG Security Scanner for anti-poisoning protection (OWASP LLM04, LLM08)
+try:
+    from rag.indexing.rag_security import RAGSecurityScanner
+    _security_scanner = None  # Lazy-initialized
+except ImportError:
+    RAGSecurityScanner = None
+    _security_scanner = None
+    logger.warning("RAG Security Scanner not available - anti-poisoning protection disabled")
+
+
 def _sanitize_sql_value(value: str) -> str:
     """
     Sanitize string values for LanceDB SQL WHERE clauses.
@@ -237,6 +247,11 @@ class KnowledgeBaseIndexer:
 
             # Token counts
             pa.field("token_count", pa.int32()),
+
+            # Provenance & Security (OWASP LLM04, LLM08)
+            pa.field("trust_level", pa.string()),      # TRUSTED, VERIFIED, UNTRUSTED
+            pa.field("trust_score", pa.float32()),     # 0.0 - 1.0
+            pa.field("security_risk", pa.string()),    # CLEAN, LOW, MEDIUM, HIGH, CRITICAL
         ])
 
     def index_chunks(
@@ -246,7 +261,8 @@ class KnowledgeBaseIndexer:
         document_path: str,
         project: str,
         file_type: str,
-        content_hash: str
+        content_hash: str,
+        provenance_metadata: Optional[Dict] = None
     ) -> int:
         """
         Index contextual chunks with embeddings into LanceDB
@@ -290,6 +306,10 @@ class KnowledgeBaseIndexer:
                 "indexed_at": now,
                 "last_updated": now,
                 "token_count": len(ctx_chunk.original_chunk) // 4,  # Estimate
+                # Provenance & Security (OWASP LLM04, LLM08)
+                "trust_level": provenance_metadata.get('trust_level', 'VERIFIED') if provenance_metadata else 'VERIFIED',
+                "trust_score": provenance_metadata.get('trust_score', 0.75) if provenance_metadata else 0.75,
+                "security_risk": provenance_metadata.get('security_risk', 'CLEAN') if provenance_metadata else 'CLEAN',
             }
             data.append(record)
 
@@ -319,11 +339,12 @@ class KnowledgeBaseIndexer:
             logger.error(f"Failed to index chunks: {e}")
             return 0
 
-    def index_document(self, document) -> int:
+    def index_document(self, document, enable_security_scan: bool = True) -> int:
         """
         Index a complete document through the full RAG pipeline
 
         This is the high-level method that orchestrates:
+        0. Security scan for injection patterns (OWASP LLM04, LLM08)
         1. Chunking the document
         2. Generating context for each chunk
         3. Embedding contextual chunks
@@ -331,6 +352,7 @@ class KnowledgeBaseIndexer:
 
         Args:
             document: Document object with content, file_path, and project
+            enable_security_scan: Enable RAG anti-poisoning scan (default: True)
 
         Returns:
             Number of chunks successfully indexed
@@ -348,6 +370,48 @@ class KnowledgeBaseIndexer:
             # Security: Validate file_path to prevent path traversal (VUL-002 fix)
             validated_path = _validate_path(document.file_path)
             logger.info(f"Indexing document: {document.file_path} (validated: {validated_path})")
+
+            # Step 0: RAG Security Scan (OWASP LLM04, LLM08 - Anti-poisoning)
+            provenance_metadata = {}
+            if enable_security_scan and RAGSecurityScanner:
+                global _security_scanner
+                if _security_scanner is None:
+                    _security_scanner = RAGSecurityScanner(
+                        strict_mode=False,  # Sanitize but don't block (default)
+                        indexer_id="vex-rag",
+                        audit_log_path=str(Path.home() / "Personal_AI_Infrastructure/.claude/logs/rag-security-audit.jsonl")
+                    )
+
+                is_safe, sanitized_content, provenance = _security_scanner.scan_document(
+                    content=document.content,
+                    source_path=document.file_path,
+                    source_type="FILE",
+                    metadata={"project": document.project}
+                )
+
+                if not is_safe:
+                    # In strict mode, blocked documents raise an error
+                    raise SecurityError(
+                        f"Document blocked by RAG security scan: {document.file_path} "
+                        f"(risk: {provenance.security_scan_result.get('risk_level', 'UNKNOWN')})"
+                    )
+
+                # Use sanitized content for indexing
+                document.content = sanitized_content
+
+                # Store provenance for metadata
+                provenance_metadata = {
+                    'trust_level': provenance.trust_level,
+                    'trust_score': provenance.trust_score,
+                    'security_risk': provenance.security_scan_result.get('risk_level', 'CLEAN'),
+                    'pattern_count': provenance.security_scan_result.get('pattern_count', 0),
+                }
+
+                logger.info(
+                    f"RAG Security: {document.file_path} - "
+                    f"Trust: {provenance.trust_score:.2f} ({provenance.trust_level}), "
+                    f"Risk: {provenance.security_scan_result.get('risk_level', 'CLEAN')}"
+                )
 
             # Step 0: Compute content hash for deduplication
             content_hash = hashlib.sha256(document.content.encode('utf-8')).hexdigest()
@@ -410,7 +474,8 @@ class KnowledgeBaseIndexer:
                 document.file_path,
                 document.project,
                 Path(document.file_path).suffix,
-                content_hash
+                content_hash,
+                provenance_metadata
             )
 
             logger.info(f"Successfully indexed {chunk_count} chunks from {document.file_path}")
