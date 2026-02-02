@@ -5,6 +5,30 @@ All notable changes to the Vex RAG Plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-02-02
+
+### Added
+- **AI Agent Discoverability** (ATHENA feedback)
+  - `search_kb(query, top_k)` MCP tool - always discoverable by AI agents
+  - `vex://help` MCP resource - onboarding documentation for agents
+  - Enhanced `get_kb_stats()` with `usage_hint` and `example_queries`
+
+- **Progress Notification System**
+  - Pluggable notification architecture with `NotifierInterface` protocol
+  - `ConsoleNotifier` - terminal progress with progress bars and ANSI colors
+  - `WebhookNotifier` - Discord, Slack, Teams webhook templates
+  - `CompositeNotifier` - combine multiple notifiers
+  - `NullNotifier` - no-op for backward compatibility
+  - `MCPProgressCollector` - collects progress for MCP tool responses
+  - Pipeline integration (indexer, context generator, embedder)
+
+### Fixed
+- **MCP Resource Discoverability** - Templated MCP resources (`vex://search/{query}`) aren't enumerable by AI agents. Added `search_kb` tool as always-discoverable alternative.
+
+### Changed
+- `index_document()` now includes progress summary in response
+- `get_kb_stats()` returns usage hints and example queries
+
 ## [1.0.1] - 2026-01-02
 
 ### Fixed

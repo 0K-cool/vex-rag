@@ -2,7 +2,7 @@
 
 > 100% local RAG system with hybrid search, contextual chunking, and BGE reranking
 
-**Version:** 1.2.0
+**Version:** 1.3.1
 **Author:** Kelvin Lomboy
 **License:** MIT
 
@@ -25,6 +25,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 - ✅ **PII sanitization** - Multi-layer sanitization (configurable)
 - ✅ **Auto-indexing** - Git post-commit hooks (optional, manual setup)
 - ✅ **Native citations** - Anthropic citations API support
+- ✅ **Progress notifications** - Console + webhook (Discord/Slack/Teams)
 
 ---
 
@@ -147,7 +148,7 @@ vex-index document.md --project MyProject # Index documents
 **MCP Server:**
 - Automatic context injection in Claude Code conversations
 - Use `vex://search/{query}` resource or ask questions naturally
-- Tools: `index_document`, `get_kb_stats`
+- Tools: `search_kb`, `index_document`, `get_kb_stats`
 
 **Python Library:**
 ```python
@@ -292,6 +293,14 @@ python -c "from rag import KnowledgeBaseIndexer; k=KnowledgeBaseIndexer('.vex-ra
 ### MCP Tools (In Conversation)
 
 ```python
+# Search knowledge base (RECOMMENDED - always discoverable by AI agents)
+search_kb("your query here", top_k=5)
+
+# Examples:
+search_kb("authentication bypass")
+search_kb("git safety check workflow", top_k=3)
+search_kb("incident response procedures")
+
 # Index a document
 index_document(
     file_path="docs/new-doc.md",
@@ -299,19 +308,24 @@ index_document(
     enable_sanitization=True  # Optional, uses config default
 )
 
-# Get KB statistics
+# Get KB statistics (includes usage hints)
 stats = get_kb_stats()
-# Returns: {total_chunks, unique_projects, unique_files, storage_size}
+# Returns: {total_chunks, projects, files, usage_hint, example_queries}
 ```
 
 ### MCP Resources
 
 ```
-# Search resource (automatic)
+# Help resource (onboarding for AI agents)
+vex://help
+
+# Search resource (alternative to search_kb tool)
 vex://search/{query}
 
 # Example: vex://search/git%20safety%20protocols
 ```
+
+**Note:** The `search_kb` tool is preferred over the `vex://search` resource because MCP tools are always discoverable by AI agents, while templated resources may not be enumerable.
 
 ---
 
@@ -848,6 +862,6 @@ Inspired by:
 
 ---
 
-**Version:** 1.2.0
+**Version:** 1.3.1
 **Last Updated:** January 3, 2026
 **100% Local Processing** - Zero Cloud APIs - Zero Cost
