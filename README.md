@@ -793,9 +793,10 @@ ruff check rag/
 
 See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for detailed version history and roadmap.
 
-**Current:** v1.2.0 (January 3, 2026) - Slash commands implementation
+**Current:** v1.3.1 (February 2, 2026) - AI agent discoverability + progress notifications
 
 **Recent Releases:**
+- v1.3.1 - Added search_kb tool, vex://help resource, progress notification system
 - v1.2.0 - Added `/rag-search` and `/rag-index` slash commands
 - v1.1.0 - Clarified plugin capabilities, fixed misleading documentation
 - v1.0.1 - CLI portability fixes, privacy improvements
@@ -807,10 +808,10 @@ See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for detailed version history and roadma
 
 See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for complete roadmap and planned features.
 
-**Short-term (v1.3.0):**
-- Create portable git hook package
-- Improve installation UX
-- Enhanced PII sanitization options
+**Completed in v1.3.1:**
+- ✅ Progress notification system (Console + Webhook)
+- ✅ AI agent discoverability (search_kb tool, vex://help)
+- ✅ Enhanced get_kb_stats with usage hints
 
 **Long-term (v2.0.0+):**
 - Full Claude Code plugin integration
