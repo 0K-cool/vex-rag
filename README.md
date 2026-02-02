@@ -34,6 +34,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 ### Prerequisites
 
 - **Python 3.11+** (tested on 3.13)
+- **macOS** (built and tested on Apple Silicon)
 - **Ollama** installed and running
 - **Claude Code CLI** (latest version)
 
@@ -820,6 +821,51 @@ See [PLUGIN-STATUS.md](PLUGIN-STATUS.md) for complete roadmap and planned featur
 - Enterprise features (multi-user, access control)
 
 ---
+
+## Platform Compatibility
+
+**Built and tested on:** macOS (Apple Silicon)
+
+### Cross-Platform Support
+
+The core Python code is cross-platform. Here's what to expect:
+
+| Component | macOS | Linux | Windows |
+|-----------|-------|-------|--------|
+| Python library | ✅ Tested | ✅ Should work | ✅ Should work |
+| MCP server | ✅ Tested | ✅ Should work | ✅ Should work |
+| CLI tools | ✅ Tested | ✅ Should work | ✅ Should work |
+| LanceDB | ✅ Tested | ✅ Should work | ✅ Should work |
+| Ollama | ✅ Tested | ✅ Available | ✅ Available |
+| BGE Reranker | ✅ MPS GPU | ✅ CUDA/CPU | ✅ CUDA/CPU |
+
+### Platform-Specific Notes
+
+**Linux:**
+- Should work out of the box
+- NVIDIA GPUs use CUDA for reranker acceleration
+- Bash scripts (git hooks) work natively
+
+**Windows:**
+- Core functionality should work
+- Bash scripts require WSL or manual PowerShell equivalents
+- Virtual environment activation: `.venv\Scripts\activate` instead of `source .venv/bin/activate`
+- NVIDIA GPUs use CUDA for reranker acceleration
+
+**GPU Acceleration:**
+- Apple Silicon: MPS (Metal Performance Shaders) - automatic
+- NVIDIA: CUDA - automatic if installed
+- No GPU: CPU fallback - works but slower reranking
+
+### Community Contributions Welcome
+
+If you successfully run vex-rag on Linux or Windows, consider contributing:
+- Installation notes for your platform
+- PowerShell equivalents for helper scripts
+- Bug fixes for platform-specific issues
+
+---
+
 
 ## License
 
