@@ -14,11 +14,15 @@ import logging
 import os
 import yaml
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 from datetime import datetime
 import uuid
 import hashlib
 import time
+
+# Type hints for notification system (avoid circular imports)
+if TYPE_CHECKING:
+    from rag.notifications import NotifierInterface
 
 logger = logging.getLogger(__name__)
 
@@ -339,7 +343,12 @@ class KnowledgeBaseIndexer:
             logger.error(f"Failed to index chunks: {e}")
             return 0
 
-    def index_document(self, document, enable_security_scan: bool = True) -> int:
+    def index_document(
+        self,
+        document,
+        enable_security_scan: bool = True,
+        notifier: Optional["NotifierInterface"] = None
+    ) -> int:
         """
         Index a complete document through the full RAG pipeline
 
@@ -353,6 +362,7 @@ class KnowledgeBaseIndexer:
         Args:
             document: Document object with content, file_path, and project
             enable_security_scan: Enable RAG anti-poisoning scan (default: True)
+            notifier: Optional progress notifier for UI updates (default: None)
 
         Returns:
             Number of chunks successfully indexed
@@ -362,18 +372,45 @@ class KnowledgeBaseIndexer:
         trace_id = str(uuid.uuid4())
         obs = RAGObservability() if RAGObservability else None
 
+        # Import notification models (lazy import to avoid circular dependency)
+        from rag.notifications import ProgressEvent, IndexingStage, NullNotifier
+
+        # Use null notifier if none provided (backward compatibility)
+        if notifier is None:
+            notifier = NullNotifier()
+
         from .chunker import SmartChunker
         from .context_generator import ContextGenerator
         from .embedder import Embedder
 
         try:
+            # Signal start of indexing
+            notifier.start(document.file_path, total_stages=6)
+
+            # Stage 1: Loading
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.LOADING,
+                message="Loading document",
+                current=1,
+                total=1,
+                file_path=document.file_path
+            ))
+
             # Security: Validate file_path to prevent path traversal (VUL-002 fix)
             validated_path = _validate_path(document.file_path)
             logger.info(f"Indexing document: {document.file_path} (validated: {validated_path})")
 
-            # Step 0: RAG Security Scan (OWASP LLM04, LLM08 - Anti-poisoning)
+            # Stage 2: Security Scan (OWASP LLM04, LLM08 - Anti-poisoning)
             provenance_metadata = {}
             if enable_security_scan and RAGSecurityScanner:
+                notifier.notify(ProgressEvent(
+                    stage=IndexingStage.SECURITY,
+                    message="Running security scan",
+                    current=1,
+                    total=1,
+                    file_path=document.file_path
+                ))
+
                 global _security_scanner
                 if _security_scanner is None:
                     _security_scanner = RAGSecurityScanner(
@@ -391,10 +428,18 @@ class KnowledgeBaseIndexer:
 
                 if not is_safe:
                     # In strict mode, blocked documents raise an error
-                    raise SecurityError(
+                    error_msg = (
                         f"Document blocked by RAG security scan: {document.file_path} "
                         f"(risk: {provenance.security_scan_result.get('risk_level', 'UNKNOWN')})"
                     )
+                    notifier.notify(ProgressEvent(
+                        stage=IndexingStage.ERROR,
+                        message=error_msg,
+                        error=error_msg,
+                        file_path=document.file_path
+                    ))
+                    notifier.finish(success=False, message=error_msg)
+                    raise SecurityError(error_msg)
 
                 # Use sanitized content for indexing
                 document.content = sanitized_content
@@ -413,7 +458,7 @@ class KnowledgeBaseIndexer:
                     f"Risk: {provenance.security_scan_result.get('risk_level', 'CLEAN')}"
                 )
 
-            # Step 0: Compute content hash for deduplication
+            # Compute content hash for deduplication
             content_hash = hashlib.sha256(document.content.encode('utf-8')).hexdigest()
             logger.info(f"Document content hash: {content_hash[:16]}...")
 
@@ -431,6 +476,7 @@ class KnowledgeBaseIndexer:
                             # Content unchanged - skip re-indexing
                             count_result = self.table.count_rows(f"file_path = '{safe_path}'")
                             logger.info(f"Document unchanged (hash match) - skipping re-indexing of {count_result} chunks")
+                            notifier.finish(success=True, message=f"Skipped (unchanged): {count_result} existing chunks")
                             return count_result
                         else:
                             # Content changed - delete old chunks and re-index
@@ -441,16 +487,33 @@ class KnowledgeBaseIndexer:
                 except Exception as e:
                     logger.warning(f"Could not check for existing chunks: {e}")
 
-            # Step 1: Chunk the document
+            # Stage 3: Chunking
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.CHUNKING,
+                message="Chunking document",
+                current=1,
+                total=1,
+                file_path=document.file_path
+            ))
+
             chunker = SmartChunker(chunk_size=384, overlap_percentage=0.15)
             chunks = chunker.chunk_document(document.content, Path(document.file_path).suffix)
             logger.info(f"Chunked into {len(chunks)} chunks")
 
             if not chunks:
                 logger.warning(f"No chunks generated from document")
+                notifier.finish(success=True, message="No content to index")
                 return 0
 
-            # Step 2: Generate context for each chunk (PARALLEL + SELECTIVE + FASTER MODEL)
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.CHUNKING,
+                message=f"Created {len(chunks)} chunks",
+                current=1,
+                total=1,
+                file_path=document.file_path
+            ))
+
+            # Stage 4: Context Generation (PARALLEL + SELECTIVE + FASTER MODEL)
             # Using llama3.2:1b for 3-5x speedup vs llama3.1:8b (smaller, faster model)
             context_gen = ContextGenerator(model="llama3.2:1b")
             contextual_chunks = context_gen.generate_contexts_parallel(
@@ -458,16 +521,29 @@ class KnowledgeBaseIndexer:
                 full_document=document.content,
                 file_path=document.file_path,
                 project=document.project,
-                max_workers=4  # Safe limit for 16GB+ RAM (adjust based on system)
+                max_workers=4,  # Safe limit for 16GB+ RAM (adjust based on system)
+                notifier=notifier  # Pass notifier for per-chunk progress
             )
 
-            # Step 3: Embed contextual chunks
+            # Stage 5: Embedding
             embedder = Embedder(model="nomic-embed-text")
             contextual_texts = [cc.contextual_chunk for cc in contextual_chunks]
-            embeddings = embedder.embed_batch(contextual_texts)
+            embeddings = embedder.embed_batch(
+                contextual_texts,
+                show_progress=True,
+                notifier=notifier  # Pass notifier for progress
+            )
             logger.info(f"Generated {len(embeddings)} embeddings")
 
-            # Step 4: Index into LanceDB
+            # Stage 6: Indexing into LanceDB
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.INDEXING,
+                message="Writing to database",
+                current=1,
+                total=1,
+                file_path=document.file_path
+            ))
+
             chunk_count = self.index_chunks(
                 contextual_chunks,
                 embeddings,
@@ -494,10 +570,19 @@ class KnowledgeBaseIndexer:
                     # Graceful degradation - don't fail indexing due to logging
                     logger.debug(f"Observability logging failed: {log_err}")
 
+            # Signal completion
+            notifier.finish(success=True, message=f"Indexed {chunk_count} chunks")
             return chunk_count
 
         except Exception as e:
             logger.error(f"Document indexing failed: {e}")
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.ERROR,
+                message=str(e),
+                error=str(e),
+                file_path=document.file_path
+            ))
+            notifier.finish(success=False, message=str(e))
             raise
 
     def search(self, query_embedding: List[float], limit: int = 5) -> List[Dict]:

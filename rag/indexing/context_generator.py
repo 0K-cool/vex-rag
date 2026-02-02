@@ -10,10 +10,14 @@ Security: 100% local processing (no cloud APIs, no data exfiltration)
 """
 
 import ollama
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
 import logging
 import asyncio
+
+# Type hints for notification system (avoid circular imports)
+if TYPE_CHECKING:
+    from rag.notifications import NotifierInterface
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +249,8 @@ Please give a short succinct context to situate this chunk within the overall do
         full_document: str,
         file_path: str,
         project: str,
-        max_workers: int = 4
+        max_workers: int = 4,
+        notifier: Optional["NotifierInterface"] = None
     ) -> List[ContextualChunk]:
         """
         Generate contexts for multiple chunks in parallel (4-8x speedup)
@@ -257,10 +262,21 @@ Please give a short succinct context to situate this chunk within the overall do
             file_path: Path to source file
             project: Project name
             max_workers: Max parallel workers (4-6 recommended for 16GB+ RAM)
+            notifier: Optional progress notifier for UI updates (default: None)
 
         Returns:
             List of ContextualChunk objects (skips failed generations)
         """
+        # Import notification models for progress events
+        from rag.notifications import ProgressEvent, IndexingStage, NullNotifier
+
+        # Use null notifier if none provided
+        if notifier is None:
+            notifier = NullNotifier()
+
+        # Track progress for notifications
+        progress_state = {"completed": 0, "total": 0}
+
         async def _process_all():
             # Create semaphore to limit concurrency
             semaphore = asyncio.Semaphore(max_workers)
@@ -283,6 +299,18 @@ Please give a short succinct context to situate this chunk within the overall do
 
             logger.info(f"Selective generation: {len(chunks_needing_context)} chunks need context, {len(chunks_skipped)} skipped (self-contained)")
 
+            # Set total for progress tracking
+            progress_state["total"] = len(chunks_needing_context)
+
+            # Initial progress notification
+            notifier.notify(ProgressEvent(
+                stage=IndexingStage.CONTEXT,
+                message=f"Generating context for {len(chunks_needing_context)} chunks",
+                current=0,
+                total=len(chunks_needing_context),
+                file_path=file_path
+            ))
+
             # Create tasks only for chunks that need context
             tasks = [
                 self._generate_context_async(
@@ -296,12 +324,26 @@ Please give a short succinct context to situate this chunk within the overall do
                 for idx, chunk in chunks_needing_context
             ]
 
-            # Process chunks needing context in parallel
+            # Process chunks needing context in parallel with progress tracking
             if tasks:
                 logger.info(f"Processing {len(tasks)} chunks in parallel (max {max_workers} workers)...")
-                results = await asyncio.gather(*tasks)
-                # Filter out None results (failed generations)
-                generated_chunks = [r for r in results if r is not None]
+                generated_chunks = []
+
+                # Process with progress updates
+                for coro in asyncio.as_completed(tasks):
+                    result = await coro
+                    if result is not None:
+                        generated_chunks.append(result)
+
+                    # Update progress
+                    progress_state["completed"] += 1
+                    notifier.notify(ProgressEvent(
+                        stage=IndexingStage.CONTEXT,
+                        message=f"Generating context",
+                        current=progress_state["completed"],
+                        total=progress_state["total"],
+                        file_path=file_path
+                    ))
             else:
                 generated_chunks = []
 

@@ -63,3 +63,18 @@ backup:
 logging:
   level: INFO
   file: .claude/logs/rag.log
+
+# Progress notifications during indexing (v1.3.0+)
+notifications:
+  console:
+    enabled: true              # Show progress in terminal (default: true)
+    show_progress_bar: true    # Display ASCII progress bars
+    verbose: false             # Show detailed per-chunk progress
+  webhook:
+    enabled: false             # Enable webhook notifications (default: false)
+    url: ""                    # Discord/Slack/Teams webhook URL (supports ${ENV_VAR})
+    template: "discord"        # Options: discord, slack, teams, generic
+    notify_stages:             # Only notify for these stages (empty = all stages)
+      - COMPLETE
+      - ERROR
+    min_interval: 2.0          # Rate limiting (seconds between notifications)

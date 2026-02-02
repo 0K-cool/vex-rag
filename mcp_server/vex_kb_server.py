@@ -9,9 +9,11 @@ This is a configurable version that reads settings from .vex-rag.yml
 in the project directory, making it portable across multiple projects.
 
 Resources:
+- vex://help - Get usage instructions and available capabilities
 - vex://search/{query} - Search knowledge base and return top results
 
 Tools:
+- search_kb - Search the knowledge base (RECOMMENDED - always discoverable)
 - index_document - Index a new document into knowledge base
 - get_kb_stats - Get knowledge base statistics
 
@@ -42,6 +44,12 @@ from rag.retrieval.pipeline import RetrievalPipeline
 from rag.indexing.document_loader import DocumentLoader
 from rag.indexing.indexer import KnowledgeBaseIndexer, _validate_path, SecurityError
 from rag.indexing.sanitizer import Sanitizer
+from rag.notifications import (
+    ProgressEvent,
+    IndexingStage,
+    NullNotifier,
+    create_notifier_from_config,
+)
 
 # Load configuration
 def load_config() -> Dict:
@@ -203,6 +211,61 @@ def get_indexer() -> KnowledgeBaseIndexer:
     return _indexer
 
 
+# =============================================================================
+# MCP RESOURCES
+# =============================================================================
+
+@mcp.resource("vex://help")
+def get_help() -> str:
+    """
+    Get usage instructions for the Vex Knowledge Base.
+
+    This resource provides onboarding information for AI agents
+    discovering the plugin for the first time.
+    """
+    return f"""
+Vex Knowledge Base - RAG System for {PROJECT_NAME}
+
+SEARCH (use the tool - always discoverable):
+  search_kb(query, top_k=5)
+
+  Examples:
+    search_kb("authentication bypass")
+    search_kb("incident response workflow", top_k=3)
+    search_kb("MITRE ATT&CK persistence techniques")
+
+ALTERNATIVE (resource - may not be discoverable):
+  vex://search/{{query}}
+
+  Examples:
+    vex://search/authentication bypass
+    vex://search/git safety check
+
+INDEXING:
+  index_document(file_path, project=None, enable_sanitization=None)
+
+  Example:
+    index_document("/path/to/document.md")
+
+STATS:
+  get_kb_stats()
+
+  Returns: total chunks, projects, files, and usage hints
+
+FEATURES:
+- Hybrid retrieval (vector + BM25 + RRF fusion)
+- BGE reranking for high-quality results
+- Native Anthropic citations support
+- PII sanitization (optional)
+- 100% local - zero cloud APIs
+
+Current project: {PROJECT_NAME}
+Database: {DB_PATH}
+Reranking: {'enabled' if ENABLE_RERANKING else 'disabled'}
+Default top_k: {DEFAULT_TOP_K}
+"""
+
+
 @mcp.resource("vex://search/{query}")
 def search_knowledge_base(query: str) -> str:
     """
@@ -217,13 +280,16 @@ def search_knowledge_base(query: str) -> str:
     - Citations have guaranteed valid character indices
     - More reliable source attribution
 
+    NOTE: This resource may not be discoverable by AI agents.
+    Prefer using the search_kb tool instead.
+
     Args:
         query: Search query (e.g., "git safety check workflow")
 
     Returns:
         JSON-formatted documents with citations enabled
     """
-    logger.info(f"MCP search request: '{query}'")
+    logger.info(f"MCP resource search request: '{query}'")
 
     try:
         # Get retrieval pipeline
@@ -272,6 +338,140 @@ def search_knowledge_base(query: str) -> str:
         }, indent=2)
 
 
+# =============================================================================
+# MCP TOOLS (always discoverable by AI agents)
+# =============================================================================
+
+@mcp.tool()
+def search_kb(query: str, top_k: int = 5) -> str:
+    """
+    Search the Vex knowledge base for relevant information.
+
+    This is the PRIMARY way to query indexed documentation, skills,
+    workflows, and other knowledge. Uses hybrid retrieval (vector + BM25)
+    with BGE reranking for high-quality results.
+
+    Args:
+        query: Natural language search query
+        top_k: Number of results to return (default: 5, max: 20)
+
+    Returns:
+        JSON with matching documents and citations
+
+    Examples:
+        search_kb("authentication bypass")
+        search_kb("git safety check workflow", top_k=3)
+        search_kb("incident response procedures")
+    """
+    # Clamp top_k to reasonable bounds
+    top_k = max(1, min(top_k, 20))
+
+    logger.info(f"MCP search_kb tool request: '{query}' (top_k={top_k})")
+
+    try:
+        pipeline = get_pipeline()
+
+        results = pipeline.retrieve(
+            query,
+            top_k=top_k,
+            enable_bm25=True,
+            verbose=False
+        )
+
+        if not results:
+            logger.info(f"No results found for query: '{query}'")
+            return json.dumps({
+                "query": query,
+                "top_k": top_k,
+                "documents": [],
+                "message": f"No results found for: {query}"
+            }, indent=2)
+
+        logger.info(f"Found {len(results)} results for query: '{query}'")
+
+        citation_docs = pipeline.format_for_citations(
+            results,
+            include_context=True
+        )
+
+        response = {
+            "query": query,
+            "top_k": top_k,
+            "documents": citation_docs,
+            "message": f"Retrieved {len(citation_docs)} relevant documents from {PROJECT_NAME} knowledge base"
+        }
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = f"Search failed: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "query": query,
+            "documents": [],
+            "error": error_msg
+        }, indent=2)
+
+
+class MCPProgressCollector:
+    """
+    Collects progress events for MCP tool response.
+
+    Instead of displaying progress to console, collects events
+    for inclusion in the tool's response message.
+    """
+
+    def __init__(self):
+        self.events: List[ProgressEvent] = []
+        self._file_path: Optional[str] = None
+        self._start_time: Optional[float] = None
+
+    def notify(self, event: ProgressEvent) -> None:
+        """Collect progress event"""
+        self.events.append(event)
+        logger.debug(f"Progress: {event.stage.name} - {event.message}")
+
+    def start(self, file_path: str, total_stages: int = 6) -> None:
+        """Signal start of indexing"""
+        import time
+        self._file_path = file_path
+        self._start_time = time.time()
+        logger.info(f"MCP indexing started: {file_path}")
+
+    def finish(self, success: bool, message: str = "") -> None:
+        """Signal end of indexing"""
+        import time
+        duration = time.time() - self._start_time if self._start_time else 0
+        logger.info(f"MCP indexing finished: success={success}, duration={duration:.1f}s, message={message}")
+
+    def get_summary(self) -> str:
+        """Get summary of progress events for response"""
+        if not self.events:
+            return ""
+
+        # Get unique stages completed
+        stages_completed = set()
+        for event in self.events:
+            if event.stage not in (IndexingStage.COMPLETE, IndexingStage.ERROR):
+                stages_completed.add(event.stage.name)
+
+        # Find last progress event for each stage
+        stage_summaries = []
+        for stage in [IndexingStage.LOADING, IndexingStage.SECURITY, IndexingStage.CHUNKING,
+                      IndexingStage.CONTEXT, IndexingStage.EMBEDDING, IndexingStage.INDEXING]:
+            stage_events = [e for e in self.events if e.stage == stage]
+            if stage_events:
+                last_event = stage_events[-1]
+                if last_event.total > 0:
+                    stage_summaries.append(f"{last_event.emoji} {last_event.stage_description}: {last_event.current}/{last_event.total}")
+                else:
+                    stage_summaries.append(f"{last_event.emoji} {last_event.stage_description}")
+
+        if stage_summaries:
+            return "\n".join(stage_summaries)
+        return ""
+
+
 @mcp.tool()
 def index_document(
     file_path: str,
@@ -284,13 +484,19 @@ def index_document(
     This tool allows manual indexing of documents during conversations.
     Useful for adding new documentation, skills, or workflows on-the-fly.
 
+    After indexing, use search_kb(query) to search the knowledge base.
+
     Args:
         file_path: Absolute or relative path to document
         project: Project name (default: from config)
         enable_sanitization: Enable PII sanitization (default: from config)
 
     Returns:
-        Status message with indexing results
+        Status message with indexing results and progress summary
+
+    Example:
+        index_document("/path/to/document.md")
+        # Then search with: search_kb("topic from document")
     """
     # Use config defaults if not specified
     if project is None:
@@ -299,6 +505,12 @@ def index_document(
         enable_sanitization = ENABLE_SANITIZATION
 
     logger.info(f"MCP index request: {file_path} (project={project}, sanitize={enable_sanitization})")
+
+    # Create progress collector for MCP response
+    progress_collector = MCPProgressCollector()
+
+    # Also create webhook notifier if configured
+    notifier = progress_collector  # Use collector as primary notifier
 
     try:
         # Resolve file path
@@ -339,11 +551,20 @@ def index_document(
                 logger.info(f"Sanitization: {result.redaction_count} redactions, {len(result.detected_patterns)} patterns")
 
         # Index document (full pipeline: chunk → context → embed → index)
-        chunk_count = indexer.index_document(doc)
+        # Pass notifier for progress tracking
+        chunk_count = indexer.index_document(doc, notifier=notifier)
 
         success_msg = f"Successfully indexed {chunk_count} chunks from {path.name}"
         if enable_sanitization:
             success_msg += f" (sanitized)"
+
+        # Add progress summary to response
+        progress_summary = progress_collector.get_summary()
+        if progress_summary:
+            success_msg += f"\n\nProgress:\n{progress_summary}"
+
+        # Add usage hint
+        success_msg += f"\n\nTo search: search_kb(\"your query\")"
 
         logger.info(success_msg)
         return success_msg
@@ -359,14 +580,28 @@ def get_kb_stats() -> Dict[str, Any]:
     """
     Get statistics about the Vex knowledge base.
 
+    Returns total chunks, projects, files indexed, plus usage hints
+    for searching the knowledge base.
+
     Returns:
-        Dictionary with KB stats (total chunks, projects, files, etc.)
+        Dictionary with KB stats and usage examples
+
+    Tip: Use search_kb(query) to search the knowledge base.
     """
     logger.info("MCP stats request")
 
     try:
         pipeline = get_pipeline()
         stats = pipeline.get_stats()
+
+        # Add usage hints (ATHENA feedback - help AI agents discover search)
+        stats["usage_hint"] = "Use search_kb(query, top_k) tool to search the knowledge base"
+        stats["example_queries"] = [
+            'search_kb("authentication bypass")',
+            'search_kb("incident response workflow", top_k=3)',
+            'search_kb("security best practices")'
+        ]
+        stats["help_resource"] = "vex://help"
 
         logger.info(f"Stats retrieved: {stats['total_chunks']} total chunks")
         return stats

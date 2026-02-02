@@ -11,6 +11,8 @@ import sys
 import argparse
 from pathlib import Path
 
+from rag.notifications import ConsoleNotifier, create_notifier_from_config
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -46,7 +48,7 @@ Examples:
     parser.add_argument(
         "--no-sanitize",
         action="store_true",
-        help="Disable PII sanitization (not recommended)"
+        help="Skip PII sanitization (not recommended)"
     )
     parser.add_argument(
         "--dry-run",
@@ -63,6 +65,11 @@ Examples:
         default=".vex-rag.yml",
         help="Path to configuration file (default: .vex-rag.yml)"
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed progress output"
+    )
 
     args = parser.parse_args()
 
@@ -75,7 +82,7 @@ Examples:
         import yaml
         config_path = Path(args.config)
         if not config_path.exists():
-            print(f"❌ Error: Configuration file not found: {config_path}", file=sys.stderr)
+            print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
             print(f"   Create .vex-rag.yml in your project root", file=sys.stderr)
             print(f"   See examples in vex-rag/examples/", file=sys.stderr)
             return 1
@@ -93,7 +100,7 @@ Examples:
         from rag.indexing.sanitizer import Sanitizer
 
         # Initialize indexer
-        print(f"📚 Initializing Vex indexer for {project_name}...", file=sys.stderr)
+        print(f"Initializing Vex indexer for {project_name}...", file=sys.stderr)
         indexer = KnowledgeBaseIndexer(db_path=db_path)
         indexer.initialize()
 
@@ -107,7 +114,7 @@ Examples:
         if args.file_path:
             file_path = Path(args.file_path)
             if not file_path.exists():
-                print(f"❌ Error: File not found: {args.file_path}", file=sys.stderr)
+                print(f"Error: File not found: {args.file_path}", file=sys.stderr)
                 return 1
             files_to_index.append(file_path)
 
@@ -116,27 +123,30 @@ Examples:
             pattern = args.pattern or args.batch
             matched_files = glob.glob(pattern, recursive=True)
             if not matched_files:
-                print(f"❌ Error: No files matched pattern: {pattern}", file=sys.stderr)
+                print(f"Error: No files matched pattern: {pattern}", file=sys.stderr)
                 return 1
             files_to_index = [Path(f) for f in matched_files if Path(f).is_file()]
-            print(f"📁 Found {len(files_to_index)} file(s) matching pattern", file=sys.stderr)
+            print(f"Found {len(files_to_index)} file(s) matching pattern", file=sys.stderr)
 
         if args.dry_run:
-            print("\n🔍 DRY RUN - Would index the following files:", file=sys.stderr)
+            print("\nDRY RUN - Would index the following files:", file=sys.stderr)
             for file_path in files_to_index:
                 print(f"   - {file_path}", file=sys.stderr)
             return 0
 
+        # Create notifier from config (falls back to console if no config)
+        notifier = create_notifier_from_config(config)
+
         # Index files
         total_chunks = 0
         for i, file_path in enumerate(files_to_index, 1):
-            print(f"\n📝 [{i}/{len(files_to_index)}] Indexing: {file_path}", file=sys.stderr)
+            print(f"\n[{i}/{len(files_to_index)}] Indexing: {file_path}", file=sys.stderr)
 
             try:
                 # Load document
                 document = loader.load_file(str(file_path), project_name)
                 if not document:
-                    print(f"   ❌ Failed to load file", file=sys.stderr)
+                    print(f"   Failed to load file", file=sys.stderr)
                     continue
 
                 # Apply sanitization if enabled
@@ -144,25 +154,24 @@ Examples:
                     sanitization_result = sanitizer.sanitize(document.content)
                     document.content = sanitization_result.sanitized_text
 
-                # Index document
-                chunk_count = indexer.index_document(document)
+                # Index document with progress notifications
+                chunk_count = indexer.index_document(document, notifier=notifier)
                 total_chunks += chunk_count
-                print(f"   ✅ Indexed {chunk_count} chunk(s)", file=sys.stderr)
 
             except Exception as e:
-                print(f"   ❌ Error indexing {file_path}: {e}", file=sys.stderr)
+                print(f"   Error indexing {file_path}: {e}", file=sys.stderr)
                 continue
 
-        print(f"\n✅ Indexing complete: {total_chunks} total chunks from {len(files_to_index)} file(s)", file=sys.stderr)
+        print(f"\nIndexing complete: {total_chunks} total chunks from {len(files_to_index)} file(s)", file=sys.stderr)
         return 0
 
     except ImportError as e:
-        print(f"❌ Error: Could not import RAG indexing module", file=sys.stderr)
+        print(f"Error: Could not import RAG indexing module", file=sys.stderr)
         print(f"   Make sure vex-rag is properly installed: pip install -e .", file=sys.stderr)
         print(f"   Error: {e}", file=sys.stderr)
         return 1
     except Exception as e:
-        print(f"❌ Error during indexing: {e}", file=sys.stderr)
+        print(f"Error during indexing: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
         return 1
