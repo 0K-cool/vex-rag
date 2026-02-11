@@ -4,6 +4,7 @@ Sanitizer - Multi-layer PII/sensitive data sanitization
 Implements defense-in-depth sanitization for client data:
 - Layer 1: Regex patterns (emails, IPs, phones, SSNs, etc.)
 - Layer 2: NER (Named Entity Recognition) for contextual PII
+  - With allowlist filtering: known-safe terms skip NER redaction
 - Layer 3: Manual review workflow
 
 Security Purpose (100% Local Architecture):
@@ -12,13 +13,22 @@ Security Purpose (100% Local Architecture):
 - Defense against accidental exposure (sharing, screenshots)
 - Future-proofing (safe to migrate if cloud components added)
 
+Allowlist (v1.1.0):
+- External JSON config at ~/.vex-rag/config/ner-allowlist.json
+- Prevents NER from redacting public security terms (OWASP, MITRE, L0-L19, etc.)
+- 60s TTL cache for performance
+- Client names and real PII are NOT allowlisted
+
 From security analysis: output/research/vex-rag-security-analysis.md
 """
 
 import re
+import json
+import time
 import spacy
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Set
 from dataclasses import dataclass
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
@@ -67,15 +77,24 @@ class Sanitizer:
         "uaa": r'(?i)university\s+of\s+alaska\s+anchorage',
     }
 
-    def __init__(self, enable_ner: bool = True):
+    # Allowlist config path and cache
+    _ALLOWLIST_DEFAULT_PATH = Path.home() / ".vex-rag" / "config" / "ner-allowlist.json"
+    _ALLOWLIST_CACHE_TTL = 60  # seconds
+
+    def __init__(self, enable_ner: bool = True, allowlist_path: Optional[str] = None):
         """
         Initialize sanitizer
 
         Args:
             enable_ner: Enable Named Entity Recognition (spaCy)
+            allowlist_path: Path to NER allowlist JSON (default: ~/.vex-rag/config/ner-allowlist.json)
         """
         self.enable_ner = enable_ner
         self.nlp = None
+        self._allowlist_path = Path(allowlist_path) if allowlist_path else self._ALLOWLIST_DEFAULT_PATH
+        self._allowlist_cache: Set[str] = set()
+        self._allowlist_cache_lower: Set[str] = set()
+        self._allowlist_loaded_at: float = 0
 
         if enable_ner:
             try:
@@ -83,6 +102,65 @@ class Sanitizer:
             except Exception as e:
                 logger.warning(f"NER disabled: Could not load spaCy model: {e}")
                 self.enable_ner = False
+
+        # Load allowlist on init
+        self._load_allowlist()
+
+    def _load_allowlist(self) -> None:
+        """Load NER allowlist from JSON config with TTL cache"""
+        now = time.time()
+        if now - self._allowlist_loaded_at < self._ALLOWLIST_CACHE_TTL and self._allowlist_cache:
+            return  # Cache still valid
+
+        try:
+            if not self._allowlist_path.exists():
+                logger.debug(f"No NER allowlist found at {self._allowlist_path}")
+                return
+
+            with open(self._allowlist_path) as f:
+                config = json.load(f)
+
+            allowlist = config.get("allowlist", {})
+            terms: Set[str] = set()
+
+            for category_name, category_data in allowlist.items():
+                category_terms = category_data.get("terms", [])
+                terms.update(category_terms)
+
+            self._allowlist_cache = terms
+            self._allowlist_cache_lower = {t.lower() for t in terms}
+            self._allowlist_loaded_at = now
+
+            logger.info(f"Loaded NER allowlist: {len(terms)} terms from {len(allowlist)} categories")
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to load NER allowlist: {e}")
+            # Keep existing cache on error (fail-open for allowlist is safe)
+
+    def _is_allowlisted(self, entity_text: str) -> bool:
+        """Check if an NER entity matches the allowlist
+
+        Uses exact match for short terms (likely acronyms) and
+        case-insensitive match for longer terms (multi-word phrases).
+
+        Args:
+            entity_text: The entity text detected by NER
+
+        Returns:
+            True if the entity should be preserved (not redacted)
+        """
+        # Refresh cache if stale
+        self._load_allowlist()
+
+        # Exact match (handles acronyms like OWASP, L5, TCB)
+        if entity_text in self._allowlist_cache:
+            return True
+
+        # Case-insensitive match (handles "Google" vs "google", multi-word terms)
+        if entity_text.lower() in self._allowlist_cache_lower:
+            return True
+
+        return False
 
     def is_client_data(self, file_path: str, content: str = None) -> bool:
         """
@@ -153,6 +231,10 @@ class Sanitizer:
         """
         Layer 2: Named Entity Recognition sanitization
 
+        Applies NER to detect PERSON, ORG, GPE entities, then filters
+        out allowlisted terms (public security frameworks, layer IDs, etc.)
+        before redacting.
+
         Args:
             text: Text to sanitize
 
@@ -166,14 +248,21 @@ class Sanitizer:
             doc = self.nlp(text)
             sanitized = text
             detected = []
+            skipped = []
 
-            # Redact PERSON, ORG, GPE (locations)
+            # Redact PERSON, ORG, GPE (locations) — unless allowlisted
             entities_to_redact = {}
 
             for ent in doc.ents:
                 if ent.label_ in ["PERSON", "ORG", "GPE"]:
+                    if self._is_allowlisted(ent.text):
+                        skipped.append(f"{ent.label_}: {ent.text}")
+                        continue
                     entities_to_redact[ent.text] = f"[REDACTED_{ent.label_}]"
                     detected.append(f"{ent.label_}: {ent.text}")
+
+            if skipped:
+                logger.debug(f"NER allowlist preserved {len(skipped)} entities: {skipped}")
 
             # Replace entities (longest first to avoid partial replacements)
             for entity, replacement in sorted(entities_to_redact.items(), key=lambda x: len(x[0]), reverse=True):
@@ -275,5 +364,7 @@ class Sanitizer:
         return {
             'regex_patterns': len(self.SANITIZATION_PATTERNS),
             'client_patterns': len(self.CLIENT_PATTERNS),
-            'ner_enabled': self.enable_ner
+            'ner_enabled': self.enable_ner,
+            'allowlist_terms': len(self._allowlist_cache),
+            'allowlist_path': str(self._allowlist_path)
         }
