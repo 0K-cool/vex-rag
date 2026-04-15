@@ -1,4 +1,4 @@
-# Vex RAG Plugin - Status & Roadmap
+# 0K-RAG Plugin - Status & Roadmap
 
 **Last Updated:** January 3, 2026
 **Current Version:** 1.2.0
@@ -6,9 +6,9 @@
 
 ---
 
-## 🎯 What is Vex RAG?
+## 🎯 What is 0K-RAG?
 
-Vex RAG is a **100% local RAG system** distributed as:
+0K-RAG is a **100% local RAG system** distributed as:
 1. **Python library** (`rag` module)
 2. **MCP server** (automatic context injection)
 3. **Slash commands** (`/rag-search`, `/rag-index`)
@@ -83,7 +83,7 @@ Vex RAG is a **100% local RAG system** distributed as:
 - Priority: Medium (manual setup works but not portable)
 
 **One-Click Installation:**
-- ❌ `claude plugin install ~/tools/vex-rag`
+- ❌ `claude plugin install ~/tools/0k-rag`
 - Status: Claude Code plugin system doesn't support this yet
 - Priority: Depends on Anthropic's plugin architecture evolution
 
@@ -168,7 +168,7 @@ When Claude Code's plugin system matures and patterns emerge, we can revisit ful
 
 ## 💪 What Works Great TODAY
 
-Don't let the roadmap fool you - **vex-rag is production-ready NOW**:
+Don't let the roadmap fool you - **0k-rag is production-ready NOW**:
 
 **For Individual Users:**
 - ✅ 100% local RAG with zero cloud costs
@@ -194,15 +194,15 @@ Don't let the roadmap fool you - **vex-rag is production-ready NOW**:
 ## 🎯 Installation Reality Check
 
 **What the README used to say:**
-> "Install with a single command: `claude plugin install ~/tools/vex-rag`"
+> "Install with a single command: `claude plugin install ~/tools/0k-rag`"
 
 **What actually works (v1.1.0):**
 ```bash
 # 1. Clone repo
-git clone https://github.com/0K-cool/0k-rag.git ~/tools/vex-rag
+git clone https://github.com/0K-cool/0k-rag.git ~/tools/0k-rag
 
 # 2. Install Python package
-cd ~/tools/vex-rag
+cd ~/tools/0k-rag
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -213,7 +213,7 @@ ollama pull nomic-embed-text
 
 # 4. Configure your project
 cd ~/your-project
-cp ~/tools/vex-rag/examples/config.pai.yml .vex-rag.yml
+cp ~/tools/0k-rag/examples/config.pai.yml .vex-rag.yml
 
 # 5. Setup MCP server (edit .mcp.json manually)
 # 6. Start using!
@@ -227,7 +227,7 @@ cp ~/tools/vex-rag/examples/config.pai.yml .vex-rag.yml
 
 ## 🔍 For Plugin Developers
 
-If you're considering using vex-rag as a reference for your own Claude Code plugin:
+If you're considering using 0k-rag as a reference for your own Claude Code plugin:
 
 **Use this as a model for:**
 - ✅ MCP server implementation (FastMCP, clean architecture)
@@ -280,7 +280,7 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 **Current Status:** Personal project, limited bandwidth for contributions
 
 **If you want to help:**
-1. Use vex-rag and provide feedback (GitHub issues)
+1. Use 0k-rag and provide feedback (GitHub issues)
 2. Share your use cases and configurations
 3. Report bugs with detailed reproduction steps
 4. Suggest features with clear use cases
@@ -304,4 +304,4 @@ If you're considering using vex-rag as a reference for your own Claude Code plug
 
 ---
 
-**TL;DR:** Vex RAG is a **production-ready library + MCP server + slash commands + CLI tools** for 100% local RAG. Full-featured Claude Code plugin with automatic context injection and manual controls. Install via pip, configure per-project, enjoy seamless RAG in conversations.
+**TL;DR:** 0K-RAG is a **production-ready library + MCP server + slash commands + CLI tools** for 100% local RAG. Full-featured Claude Code plugin with automatic context injection and manual controls. Install via pip, configure per-project, enjoy seamless RAG in conversations.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Vex Knowledge Base MCP Server (Plugin Version)
+0K-RAG Knowledge Base MCP Server (Plugin Version)
 
-Provides MCP (Model Context Protocol) access to the Vex RAG system.
+Provides MCP (Model Context Protocol) access to the 0K-RAG system.
 Enables automatic context injection into Claude Code conversations.
 
 This is a configurable version that reads settings from .vex-rag.yml

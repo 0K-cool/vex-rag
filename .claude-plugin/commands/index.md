@@ -1,6 +1,6 @@
 ---
 name: rag-index
-description: Index a document into vex-rag knowledge base
+description: Index a document into 0k-rag knowledge base
 ---
 
 # RAG Index
@@ -68,7 +68,7 @@ Indexing uses your project's `.vex-rag.yml` configuration:
 
 ## Notes
 
-- Requires vex-rag plugin to be installed (`pip install -e .`)
+- Requires 0k-rag plugin to be installed (`pip install -e .`)
 - Requires Ollama models: `nomic-embed-text`, `llama3.1:8b`
 - Indexing time: ~10-30 seconds per document (depends on size)
 - Duplicate detection: Same content hash skips re-indexing

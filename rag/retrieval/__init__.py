@@ -1,5 +1,5 @@
 """
-Vex RAG Retrieval Module
+0K-RAG Retrieval Module
 
 Implements hybrid search with vector search, BM25, RRF fusion, and BGE reranking.
 """

@@ -1,5 +1,5 @@
 {
-  "name": "vex-rag",
+  "name": "0k-rag",
   "version": "1.3.1",
   "description": "100% local RAG system - Python library + MCP server + CLI tools + slash commands",
   "author": "Kelvin Lomboy",
@@ -28,12 +28,12 @@
     {
       "name": "rag-search",
       "file": "commands/search.md",
-      "description": "Search vex-rag knowledge base manually"
+      "description": "Search 0k-rag knowledge base manually"
     },
     {
       "name": "rag-index",
       "file": "commands/index.md",
-      "description": "Index a document into vex-rag knowledge base"
+      "description": "Index a document into 0k-rag knowledge base"
     }
   ],
 

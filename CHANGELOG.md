@@ -1,9 +1,20 @@
 # Changelog
 
-All notable changes to the Vex RAG Plugin will be documented in this file.
+All notable changes to the 0K-RAG Plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.2] - 2026-04-14
+
+### Changed
+- **RENAMED:** Vex RAG → 0K-RAG across documentation and metadata
+- Package name: `vex-rag` → `0k-rag` (pyproject.toml, plugin.json)
+- GitHub repository: `0K-cool/vex-rag` → `0K-cool/0k-rag` (old URLs auto-redirect)
+- Display name: "Vex RAG Plugin" → "0K-RAG Plugin"
+- Historical changelog entries preserved with original naming
+- Config filename `.vex-rag.yml` unchanged for backward compatibility
+- MCP server name `vex-knowledge-base` unchanged for backward compatibility
 
 ## [1.4.1] - 2026-03-18
 

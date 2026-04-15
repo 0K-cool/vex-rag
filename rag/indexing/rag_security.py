@@ -355,7 +355,7 @@ class ProvenanceTracker:
         },
     }
 
-    def __init__(self, indexer_id: str = "vex-rag"):
+    def __init__(self, indexer_id: str = "0k-rag"):
         """
         Initialize provenance tracker.
 
@@ -476,7 +476,7 @@ class RAGSecurityScanner:
     def __init__(
         self,
         strict_mode: bool = False,
-        indexer_id: str = "vex-rag",
+        indexer_id: str = "0k-rag",
         audit_log_path: Optional[str] = None
     ):
         """

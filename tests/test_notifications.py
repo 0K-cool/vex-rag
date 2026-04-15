@@ -1,5 +1,5 @@
 """
-Unit tests for the vex-rag notification system.
+Unit tests for the 0k-rag notification system.
 
 Tests cover:
 - ProgressEvent and IndexingStage models

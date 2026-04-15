@@ -1,12 +1,12 @@
 """
 RAG Observability Integration
 
-Integrates vex-rag with PAI Observability Framework (Phases 1-3).
+Integrates 0k-rag with PAI Observability Framework (Phases 1-3).
 Logs token usage, latency, and errors for RAG operations.
 
 Portable Design:
 - Checks project's .claude/scripts/ first (if available)
-- Falls back to vex-rag plugin's bundled observability-scripts/
+- Falls back to 0k-rag plugin's bundled observability-scripts/
 - Gracefully degrades if neither location has scripts
 """
 
@@ -26,7 +26,7 @@ class RAGObservability:
 
         Checks multiple locations for observability scripts:
         1. Project's .claude/scripts/ directory (if installed locally)
-        2. vex-rag plugin's bundled observability-scripts/ (fallback)
+        2. 0k-rag plugin's bundled observability-scripts/ (fallback)
 
         Args:
             project_dir: Project root directory (where .claude/ exists)
@@ -38,7 +38,7 @@ class RAGObservability:
         project_latency = Path(self.project_dir) / ".claude/scripts/log-latency-trace.sh"
         project_error = Path(self.project_dir) / ".claude/scripts/vex-log-error.sh"
 
-        # Location 2: vex-rag plugin's bundled scripts
+        # Location 2: 0k-rag plugin's bundled scripts
         # Get plugin root directory (go up from rag/utils/observability.py)
         plugin_root = Path(__file__).parent.parent.parent
         plugin_token = plugin_root / "observability-scripts/log-token-usage.sh"

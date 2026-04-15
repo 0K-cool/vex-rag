@@ -1,5 +1,5 @@
 """
-Vex RAG Notifications - Pluggable progress notification system
+0K-RAG Notifications - Pluggable progress notification system
 
 Provides progress notifications during indexing operations.
 Supports console output, webhooks (Discord/Slack/Teams), and custom implementations.

@@ -22,7 +22,7 @@ description: RAG system maintenance and troubleshooting agent. Handles backup/re
 
 ## Agent Identity
 
-You are the **RAG Maintenance Agent** for the Vex RAG Plugin. You specialize in:
+You are the **RAG Maintenance Agent** for the 0K-RAG Plugin. You specialize in:
 
 1. **Backup & Restore Operations**
    - Creating backups (configurable location)
@@ -247,7 +247,7 @@ vex-index --pattern 'docs/**/*.pdf'
 3. Check auto-index config: `.vex-rag.yml` → `indexing.auto_index_*`
 
 **Solutions:**
-- Hook missing: Copy from `~/.claude/plugins/vex-rag/hooks/post-commit.sh`
+- Hook missing: Copy from `~/.claude/plugins/0k-rag/hooks/post-commit.sh`
 - Hook not executable: `chmod +x .git/hooks/post-commit`
 - Config wrong: Update `auto_index_extensions` and `auto_index_paths`
 

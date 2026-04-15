@@ -1,5 +1,5 @@
 """
-Vex Search - Search the RAG knowledge base from command line
+0K-RAG Search - Search the RAG knowledge base from command line
 
 Usage:
     vex-search "your query here"
@@ -14,7 +14,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Search the Vex RAG knowledge base",
+        description="Search the 0K-RAG knowledge base",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -67,7 +67,7 @@ Examples:
         if not config_path.exists():
             print(f"❌ Error: Configuration file not found: {config_path}", file=sys.stderr)
             print(f"   Create .vex-rag.yml in your project root", file=sys.stderr)
-            print(f"   See examples in vex-rag/examples/", file=sys.stderr)
+            print(f"   See examples in 0k-rag/examples/", file=sys.stderr)
             return 1
 
         with open(config_path) as f:
@@ -132,7 +132,7 @@ Examples:
 
     except ImportError as e:
         print(f"❌ Error: Could not import RAG retrieval module", file=sys.stderr)
-        print(f"   Make sure vex-rag is properly installed: pip install -e .", file=sys.stderr)
+        print(f"   Make sure 0k-rag is properly installed: pip install -e .", file=sys.stderr)
         print(f"   Error: {e}", file=sys.stderr)
         return 1
     except Exception as e:

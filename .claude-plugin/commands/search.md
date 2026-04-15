@@ -1,6 +1,6 @@
 ---
 name: rag-search
-description: Search vex-rag knowledge base manually
+description: Search 0k-rag knowledge base manually
 ---
 
 # RAG Search
@@ -18,7 +18,7 @@ Manually search the local knowledge base for relevant documentation.
 ```
 /rag-search "git safety check workflow"
 /rag-search "what are the mandatory protocols"
-/rag-search "how to use vex-rag"
+/rag-search "how to use 0k-rag"
 ```
 
 ## How It Works
@@ -51,6 +51,6 @@ Search uses your project's `.vex-rag.yml` configuration:
 
 ## Notes
 
-- Requires vex-rag plugin to be installed (`pip install -e .`)
+- Requires 0k-rag plugin to be installed (`pip install -e .`)
 - Requires Ollama models: `nomic-embed-text`, `llama3.1:8b`
 - First search loads BGE reranker (~6 seconds), subsequent searches are fast (~2 seconds)

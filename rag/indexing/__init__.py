@@ -1,5 +1,5 @@
 """
-Vex RAG Indexing Module
+0K-RAG Indexing Module
 
 Handles document loading, chunking, context generation, sanitization, and indexing.
 

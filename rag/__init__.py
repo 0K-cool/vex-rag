@@ -1,5 +1,5 @@
 """
-Vex RAG - 100% Local RAG System with Hybrid Search
+0K-RAG - 100% Local RAG System with Hybrid Search
 
 A production-ready Retrieval-Augmented Generation (RAG) system with:
 - Contextual chunking (Llama 3.1 8B)

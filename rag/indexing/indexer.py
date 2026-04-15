@@ -460,7 +460,7 @@ class KnowledgeBaseIndexer:
                 if _security_scanner is None:
                     _security_scanner = RAGSecurityScanner(
                         strict_mode=False,  # Sanitize but don't block (default)
-                        indexer_id="vex-rag",
+                        indexer_id="0k-rag",
                         audit_log_path=str(Path.home() / "Personal_AI_Infrastructure/.claude/logs/rag-security-audit.jsonl")
                     )
 

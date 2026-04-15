@@ -1,4 +1,4 @@
-# Vex RAG Plugin 🦖⚡
+# 0K-RAG Plugin 🦖⚡
 
 > 100% local RAG system with hybrid search, contextual chunking, and BGE reranking
 
@@ -8,7 +8,7 @@
 
 ---
 
-## What is Vex RAG?
+## What is 0K-RAG?
 
 A production-ready Retrieval-Augmented Generation (RAG) system designed for **100% local processing** with zero cloud APIs and zero cost. Distributed as a Python library with MCP server integration, slash commands, and CLI tools for seamless integration with Claude Code.
 
@@ -44,7 +44,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for **10
 # Clone to tools directory
 cd ~/tools
 git clone https://github.com/0K-cool/0k-rag.git
-cd vex-rag
+cd 0k-rag
 ```
 
 ### 2. Install Python Package
@@ -56,7 +56,7 @@ python3 -m venv .venv
 # Activate virtual environment
 source .venv/bin/activate
 
-# Install vex-rag package (editable mode)
+# Install 0k-rag package (editable mode)
 pip install -e .
 
 # Install spaCy model for PII detection
@@ -86,7 +86,7 @@ ollama pull nomic-embed-text
 cd ~/your-project
 
 # Copy example configuration
-cp ~/tools/vex-rag/examples/config.pai.yml .vex-rag.yml
+cp ~/tools/0k-rag/examples/config.pai.yml .vex-rag.yml
 
 # Edit configuration for your project
 # At minimum: update project.name and security.allowed_base_paths
@@ -111,15 +111,15 @@ vex-index docs/ --batch
 {
   "mcpServers": {
     "vex-knowledge-base": {
-      "command": "/Users/yourusername/tools/vex-rag/.venv/bin/python3",
+      "command": "/Users/yourusername/tools/0k-rag/.venv/bin/python3",
       "args": [
-        "/Users/yourusername/tools/vex-rag/mcp_server/vex_kb_server.py"
+        "/Users/yourusername/tools/0k-rag/mcp_server/vex_kb_server.py"
       ],
       "env": {
         "RAG_CONFIG": "/Users/yourusername/your-project/.vex-rag.yml",
-        "PYTHONPATH": "/Users/yourusername/tools/vex-rag"
+        "PYTHONPATH": "/Users/yourusername/tools/0k-rag"
       },
-      "description": "Vex RAG Plugin - Automatic context injection from knowledge base"
+      "description": "0K-RAG Plugin - Automatic context injection from knowledge base"
     }
   }
 }
@@ -132,7 +132,7 @@ vex-index docs/ --batch
 - Restart Claude Code after adding this configuration
 
 **Troubleshooting:**
-- If MCP server doesn't connect: Check that `PYTHONPATH` points to the vex-rag directory
+- If MCP server doesn't connect: Check that `PYTHONPATH` points to the 0k-rag directory
 - If you get "module not found" errors: Verify `PYTHONPATH` is set in `.mcp.json`
 - Logs location: Configured in `.vex-rag.yml` under `logging.file`
 
@@ -262,7 +262,7 @@ For manual control during conversations, use slash commands:
 **Examples:**
 ```
 /rag-search "git safety protocols"
-/rag-search "how to use vex-rag"
+/rag-search "how to use 0k-rag"
 /rag-index docs/new-feature.md
 /rag-index ~/Downloads/report.pdf
 ```
@@ -340,7 +340,7 @@ vex://search/{query}
 
 ## Observability (Optional)
 
-Vex RAG includes **optional** performance monitoring and cost tracking. This feature is:
+0K-RAG includes **optional** performance monitoring and cost tracking. This feature is:
 - ✅ **100% local** - logs stored locally, never sent to cloud
 - ✅ **Zero-config** - works automatically once installed
 - ✅ **Portable** - bundled with plugin, works anywhere
@@ -361,7 +361,7 @@ Vex RAG includes **optional** performance monitoring and cost tracking. This fea
 
 ### How It Works
 
-Vex RAG checks two locations for observability scripts:
+0K-RAG checks two locations for observability scripts:
 
 1. **Project's `.claude/scripts/` directory** (if installed locally)
 2. **Plugin's `observability-scripts/` directory** (bundled fallback)
@@ -392,7 +392,7 @@ Install observability to your project for project-specific logs:
 cd ~/Personal_AI_Infrastructure
 
 # Run installation helper
-~/tools/vex-rag/observability-scripts/install-observability.sh
+~/tools/0k-rag/observability-scripts/install-observability.sh
 
 # ✅ Creates .claude/scripts/ with observability infrastructure
 # ✅ Creates .claude/logs/ for project-specific tracking
@@ -532,7 +532,7 @@ Automatically index modified files after git commits:
 
 ```bash
 # Copy hook to your project (if hook exists)
-cp ~/tools/vex-rag/hooks/post-commit.sh .git/hooks/post-commit 2>/dev/null || \
+cp ~/tools/0k-rag/hooks/post-commit.sh .git/hooks/post-commit 2>/dev/null || \
   echo "Note: Hook not included in plugin. Create your own or see examples/"
 
 # Make executable
@@ -729,7 +729,7 @@ The BM25/FTS index files are missing from disk. Run `rebuild_index()` to recreat
 3. Check config: `.vex-rag.yml` → `indexing.auto_index_*`
 
 **Solutions:**
-- Hook missing: Create your own or check `~/tools/vex-rag/hooks/` (if included)
+- Hook missing: Create your own or check `~/tools/0k-rag/hooks/` (if included)
 - Hook not executable: `chmod +x .git/hooks/post-commit`
 - Config wrong: Update `auto_index_extensions` and `auto_index_paths`
 
@@ -788,7 +788,7 @@ vex-index document.md --no-sanitize
 ### Running Tests
 
 ```bash
-cd ~/tools/vex-rag
+cd ~/tools/0k-rag
 
 # Activate venv
 source .venv/bin/activate
@@ -891,7 +891,7 @@ The core Python code is cross-platform. Here's what to expect:
 
 ### Community Contributions Welcome
 
-If you successfully run vex-rag on Linux or Windows, consider contributing:
+If you successfully run 0k-rag on Linux or Windows, consider contributing:
 - Installation notes for your platform
 - PowerShell equivalents for helper scripts
 - Bug fixes for platform-specific issues
