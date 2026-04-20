@@ -175,6 +175,19 @@ def _validate_path(user_path: str, allowed_bases: Optional[List[Path]] = None) -
 class KnowledgeBaseIndexer:
     """Manage LanceDB knowledge base"""
 
+    # --- dedup + vacuum tunables ---
+    # LanceDB has no DISTINCT, so we load rows and dedupe in memory.
+    # HASH_LOOKUP_LIMIT caps the per-call hash-first query (documents with
+    # more chunks across historical paths than this fall back to
+    # path-based dedup rather than acting on a partial set).
+    # VACUUM_SCAN_ROW_LIMIT is the hard cap for vacuum_orphans(); past
+    # this, vacuum aborts so we don't report false orphans.
+    # VACUUM_SCAN_WARN_THRESHOLD tells operators to paginate / split by
+    # project before they hit the hard cap.
+    HASH_LOOKUP_LIMIT: int = 10_000
+    VACUUM_SCAN_ROW_LIMIT: int = 1_000_000
+    VACUUM_SCAN_WARN_THRESHOLD: int = 100_000
+
     def __init__(self, db_path: str = "lance_vex_kb"):  # NOTE: lance_vex_kb is the legacy default path — preserved for existing installations
         """
         Initialize indexer
@@ -529,20 +542,46 @@ class KnowledgeBaseIndexer:
             if self.table is not None:
                 try:
                     with self._write_lock():
-                        # Security: sanitize file_path to prevent SQL injection (VUL-001 fix)
-                        safe_path = _sanitize_sql_value(document.file_path)
+                        # SQL-escape is ONLY for interpolation into LanceDB WHERE
+                        # clauses. In-memory comparisons (membership tests) and
+                        # parameterized `update(values=...)` must use the raw
+                        # path — otherwise apostrophes in filenames cause silent
+                        # mismatches or get doubled in the stored data.
+                        raw_path = document.file_path
+                        safe_path = _sanitize_sql_value(raw_path)  # for WHERE only
 
                         # Step 1: hash-first lookup (catches moves and true no-ops).
+                        # Bounded by HASH_LOOKUP_LIMIT — a document with that
+                        # many chunks at historical paths is an extreme outlier.
+                        # If we hit the cap we warn and fall through to
+                        # path-based dedup rather than acting on a partial set.
+                        # Note: `>=` is intentionally conservative — a document
+                        # with exactly HASH_LOOKUP_LIMIT chunks is treated as
+                        # truncated. Acceptable trade-off vs. the risk of
+                        # losing a would-be orphan on the boundary.
                         hash_matches = (
                             self.table.search()
                             .where(f"content_hash = '{content_hash}'")
-                            .limit(50)
+                            .limit(self.HASH_LOOKUP_LIMIT)
                             .to_list()
                         )
+                        if len(hash_matches) >= self.HASH_LOOKUP_LIMIT:
+                            # Lazy %-style logging: skips format eval when the
+                            # warning level is disabled (ruff G004 / pylint W1203).
+                            logger.warning(
+                                "hash-first dedup: content_hash %s... has "
+                                "%d+ chunks across historical paths — results "
+                                "truncated. Skipping move-detection and "
+                                "falling through to path-based dedup.",
+                                content_hash[:16],
+                                self.HASH_LOOKUP_LIMIT,
+                            )
+                            hash_matches = []
+
                         if hash_matches:
                             existing_paths = {row["file_path"] for row in hash_matches}
 
-                            if safe_path in existing_paths:
+                            if raw_path in existing_paths:
                                 # Case 1a — same path + same hash → unchanged, skip.
                                 count_result = self.table.count_rows(
                                     f"file_path = '{safe_path}'"
@@ -565,7 +604,7 @@ class KnowledgeBaseIndexer:
                             old_paths = sorted(existing_paths)
                             logger.info(
                                 f"Move detected — content at {old_paths} now at "
-                                f"{safe_path}. Updating file_path pointer."
+                                f"{raw_path}. Updating file_path pointer."
                             )
                             new_last_updated = datetime.now().isoformat()
                             for old_path in old_paths:
@@ -575,8 +614,10 @@ class KnowledgeBaseIndexer:
                                         f"content_hash = '{content_hash}' "
                                         f"AND file_path = '{safe_old}'"
                                     ),
+                                    # values={} is parameterized by LanceDB — pass
+                                    # raw strings, not SQL-escaped ones.
                                     values={
-                                        "file_path": safe_path,
+                                        "file_path": raw_path,
                                         "last_updated": new_last_updated,
                                     },
                                 )
@@ -584,7 +625,7 @@ class KnowledgeBaseIndexer:
                                 f"file_path = '{safe_path}'"
                             )
                             logger.info(
-                                f"Moved {count_result} chunks to {safe_path} "
+                                f"Moved {count_result} chunks to {raw_path} "
                                 f"(no re-embedding)"
                             )
                             notifier.finish(
@@ -852,22 +893,46 @@ class KnowledgeBaseIndexer:
             "deleted_chunk_count": 0,
             "scanned_paths": 0,
             "match_filter": match,
+            "error": None,  # non-None on partial failure or early exit
         }
 
         if self.table is None:
             logger.warning("vacuum_orphans called before table initialized")
+            result["error"] = "table_not_initialized"
             return result
 
+        # Pulling every file_path in the KB. LanceDB doesn't expose DISTINCT,
+        # so we load the column and dedupe in memory. At ~150 docs this is
+        # trivial; near the hard cap we warn operators that pagination may
+        # be needed to avoid memory pressure.
         try:
-            # Pull every file_path in the KB. LanceDB doesn't expose a DISTINCT,
-            # so we load the column and dedupe in memory. For a 150-doc KB this
-            # is fine (~150KB of strings); at 100k+ docs consider paginating.
             all_rows = (
                 self.table.search()
                 .select(["file_path"])
-                .limit(1_000_000)
+                .limit(self.VACUUM_SCAN_ROW_LIMIT)
                 .to_list()
             )
+            if len(all_rows) >= self.VACUUM_SCAN_ROW_LIMIT:
+                # Hard cap hit → abort early; operator needs to split the
+                # sweep (e.g., per-project) before we can reason about
+                # orphans. Don't also emit the warning — that would
+                # double-log the same condition confusingly.
+                # Lazy %-style args: skip format eval when level disabled.
+                logger.error(
+                    "vacuum: hit %d-row scan cap — orphan detection is "
+                    "INCOMPLETE. Aborting to avoid false orphan claims.",
+                    self.VACUUM_SCAN_ROW_LIMIT,
+                )
+                result["error"] = "scan_row_limit_reached"
+                return result
+            if len(all_rows) >= self.VACUUM_SCAN_WARN_THRESHOLD:
+                logger.warning(
+                    "vacuum: scanning %d rows — approaching the %d hard "
+                    "cap. Consider paginating or running per-project "
+                    "sweeps to avoid truncation.",
+                    len(all_rows),
+                    self.VACUUM_SCAN_ROW_LIMIT,
+                )
             unique_paths = sorted({row["file_path"] for row in all_rows})
             result["scanned_paths"] = len(unique_paths)
 
@@ -931,10 +996,18 @@ class KnowledgeBaseIndexer:
             return result
 
         except TimeoutError as e:
-            logger.error(f"vacuum: write lock timeout: {e}")
+            # Full exception detail stays in the logger call (local log
+            # file only). The structured `error` key on the returned
+            # dict carries ONLY the error class name — callers sometimes
+            # serialize this to log aggregators / API responses, and
+            # exception messages can embed paths, SQL fragments, or
+            # connection strings we shouldn't leak there.
+            logger.error("vacuum: write lock timeout: %s", e)
+            result["error"] = "write_lock_timeout"
             return result
         except Exception as e:
-            logger.error(f"vacuum failed: {e}")
+            logger.error("vacuum failed: %s: %s", type(e).__name__, e)
+            result["error"] = f"exception: {type(e).__name__}"
             return result
 
     def get_stats(self) -> Dict:

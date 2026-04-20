@@ -204,6 +204,59 @@ class VacuumOrphansTests(unittest.TestCase):
         self.assertEqual(report["scanned_paths"], 0)
         self.assertEqual(report["orphan_paths"], [])
         self.assertEqual(report["deleted_chunk_count"], 0)
+        self.assertIsNone(
+            report["error"], "clean sweep must not set an error"
+        )
+
+    def test_clean_sweep_reports_no_error(self) -> None:
+        """Successful vacuum (orphan or not) leaves error=None."""
+        alive = self._write_real_file("alive.md")
+        orphan = os.path.join(self.tmp, "gone.md")
+        self._add_rows([
+            _synthetic_chunk_row(alive, "hash-alive", 0),
+            _synthetic_chunk_row(orphan, "hash-orphan", 0),
+        ])
+        report = self.indexer.vacuum_orphans(dry_run=False)
+        self.assertIsNone(report["error"])
+        self.assertEqual(report["deleted_chunk_count"], 1)
+
+    def test_error_key_set_when_table_uninitialized(self) -> None:
+        """A raw indexer with no table set surfaces table_not_initialized."""
+        from rag.indexing.indexer import KnowledgeBaseIndexer
+
+        raw_indexer = KnowledgeBaseIndexer(
+            db_path=os.path.join(self.tmp, "kb_not_init")
+        )
+        # Deliberately do NOT call initialize() — table stays None.
+        report = raw_indexer.vacuum_orphans(dry_run=True)
+        self.assertEqual(report["error"], "table_not_initialized")
+        self.assertEqual(report["scanned_paths"], 0)
+
+    def test_error_key_set_when_scan_row_limit_reached(self) -> None:
+        """Hitting the hard scan cap aborts with scan_row_limit_reached.
+
+        Uses the class-level tunable so we don't need to synthesize 1M rows.
+        patch.object restores the original value even if the test body
+        raises — safer than a raw attribute mutation if parallel test
+        runners (pytest-xdist) are ever introduced.
+        """
+        from unittest.mock import patch
+
+        from rag.indexing.indexer import KnowledgeBaseIndexer
+
+        alive = self._write_real_file("alive.md")
+        self._add_rows([_synthetic_chunk_row(alive, "h1", 0)])
+
+        with (
+            patch.object(KnowledgeBaseIndexer, "VACUUM_SCAN_ROW_LIMIT", 1),
+            patch.object(KnowledgeBaseIndexer, "VACUUM_SCAN_WARN_THRESHOLD", 1),
+        ):
+            report = self.indexer.vacuum_orphans(dry_run=True)
+
+        self.assertEqual(report["error"], "scan_row_limit_reached")
+        # Abort before scanning unique paths — scanned_paths stays 0.
+        self.assertEqual(report["scanned_paths"], 0)
+        self.assertEqual(report["deleted_chunk_count"], 0)
 
 
 if __name__ == "__main__":
