@@ -692,24 +692,29 @@ class KnowledgeBaseIndexer:
             # Stage 4: Context Generation (PARALLEL + SELECTIVE + FASTER MODEL)
             # Using llama3.2:1b for 3-5x speedup vs llama3.1:8b (smaller, faster model)
             context_gen = ContextGenerator(model="llama3.2:1b")
-            contextual_chunks = context_gen.generate_contexts_parallel(
-                chunks=chunks,
-                full_document=document.content,
-                file_path=document.file_path,
-                project=document.project,
-                max_workers=4,  # Safe limit for 16GB+ RAM (adjust based on system)
-                notifier=notifier  # Pass notifier for per-chunk progress
-            )
-
-            # Stage 5: Embedding
             embedder = Embedder(model="nomic-embed-text")
-            contextual_texts = [cc.contextual_chunk for cc in contextual_chunks]
-            embeddings = embedder.embed_batch(
-                contextual_texts,
-                show_progress=True,
-                notifier=notifier  # Pass notifier for progress
-            )
-            logger.info(f"Generated {len(embeddings)} embeddings")
+            try:
+                contextual_chunks = context_gen.generate_contexts_parallel(
+                    chunks=chunks,
+                    full_document=document.content,
+                    file_path=document.file_path,
+                    project=document.project,
+                    max_workers=4,  # Safe limit for 16GB+ RAM (adjust based on system)
+                    notifier=notifier  # Pass notifier for per-chunk progress
+                )
+
+                # Stage 5: Embedding
+                contextual_texts = [cc.contextual_chunk for cc in contextual_chunks]
+                embeddings = embedder.embed_batch(
+                    contextual_texts,
+                    show_progress=True,
+                    notifier=notifier  # Pass notifier for progress
+                )
+                logger.info(f"Generated {len(embeddings)} embeddings")
+            finally:
+                # Close sync ollama clients to prevent ResourceWarning (issue #16).
+                context_gen.close()
+                embedder.close()
 
             # Stage 6: Indexing into LanceDB
             notifier.notify(ProgressEvent(

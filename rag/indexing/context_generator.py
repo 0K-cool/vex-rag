@@ -480,3 +480,15 @@ Please give a short succinct context to situate this chunk within the overall do
             'total_generated': self.generation_count,
             'model': self.model
         }
+
+    def close(self) -> None:
+        """Close the underlying sync httpx client to prevent ResourceWarning at process exit."""
+        try:
+            self._client.close()
+        except AttributeError:
+            try:
+                self._client._client.close()
+            except Exception:
+                logger.debug("Sync client cleanup failed", exc_info=True)
+        except Exception:
+            logger.debug("Sync client cleanup failed", exc_info=True)
