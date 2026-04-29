@@ -356,10 +356,20 @@ Please give a short succinct context to situate this chunk within the overall do
                 else:
                     generated_chunks = []
             finally:
-                # ollama-python's AsyncClient does not expose a public close()/aclose()
-                # in 0.6.x; reach the underlying httpx client to release sockets.
-                # Track upstream: https://github.com/ollama/ollama-python/issues/532
-                await client._client.aclose()
+                # Future-proof: prefer public close() when ollama-python adds it
+                # (https://github.com/ollama/ollama-python/issues/532). Today,
+                # 0.6.x AsyncClient has no public close()/aclose() — fall back
+                # to the underlying httpx client. Cleanup errors are swallowed
+                # and logged so they can't mask a successful generation result.
+                try:
+                    await client.close()
+                except AttributeError:
+                    try:
+                        await client._client.aclose()
+                    except Exception:
+                        logger.debug("AsyncClient cleanup failed", exc_info=True)
+                except Exception:
+                    logger.debug("AsyncClient cleanup failed", exc_info=True)
 
             # Combine generated and skipped chunks
             all_chunks = generated_chunks + chunks_skipped

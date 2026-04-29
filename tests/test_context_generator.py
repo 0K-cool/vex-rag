@@ -63,7 +63,9 @@ class TestContextGeneratorAsyncClientLeak:
             mock_async_instance.generate = AsyncMock(
                 return_value={"response": "This chunk describes feature initialization."}
             )
-            # _client.aclose() must be awaitable
+            # Today's ollama-python AsyncClient lacks public close(); production
+            # code falls back to _client.aclose(). Simulate that by deleting close.
+            del mock_async_instance.close
             mock_async_instance._client = MagicMock()
             mock_async_instance._client.aclose = AsyncMock()
             mock_async_cls.return_value = mock_async_instance
@@ -78,6 +80,36 @@ class TestContextGeneratorAsyncClientLeak:
             # AsyncClient constructor called exactly once regardless of chunk count
             mock_async_cls.assert_called_once_with(timeout=gen._ollama_timeout)
 
+    def test_generate_contexts_parallel_uses_close_when_available(self):
+        """When the installed library exposes public close(), it's preferred over the httpx fallback."""
+        chunks = _make_qualifying_chunks(3)
+
+        with patch("rag.indexing.context_generator.ollama.Client") as mock_sync_cls, \
+             patch("rag.indexing.context_generator.ollama.AsyncClient") as mock_async_cls:
+
+            gen = _build_generator_with_patched_sync_client(mock_sync_cls)
+
+            mock_async_instance = MagicMock()
+            mock_async_instance.generate = AsyncMock(
+                return_value={"response": "ok"}
+            )
+            # Future ollama-python: public close() exists and works.
+            mock_async_instance.close = AsyncMock()
+            mock_async_instance._client = MagicMock()
+            mock_async_instance._client.aclose = AsyncMock()
+            mock_async_cls.return_value = mock_async_instance
+
+            gen.generate_contexts_parallel(
+                chunks=chunks,
+                full_document="doc",
+                file_path="test.md",
+                project="test-project",
+            )
+
+            # Public close() preferred; httpx fallback NOT called
+            mock_async_instance.close.assert_awaited_once()
+            mock_async_instance._client.aclose.assert_not_awaited()
+
     def test_generate_contexts_parallel_closes_client(self):
         """_client.aclose() must be awaited exactly once after processing completes."""
         chunks = _make_qualifying_chunks(3)
@@ -91,6 +123,7 @@ class TestContextGeneratorAsyncClientLeak:
             mock_async_instance.generate = AsyncMock(
                 return_value={"response": "This chunk describes feature initialization."}
             )
+            del mock_async_instance.close  # match real ollama-python 0.6.x
             mock_async_instance._client = MagicMock()
             mock_async_instance._client.aclose = AsyncMock()
             mock_async_cls.return_value = mock_async_instance
@@ -102,7 +135,7 @@ class TestContextGeneratorAsyncClientLeak:
                 project="test-project",
             )
 
-            # aclose() awaited exactly once
+            # aclose() awaited exactly once via the AttributeError fallback
             mock_async_instance._client.aclose.assert_awaited_once()
 
     def test_generate_contexts_parallel_closes_client_on_error(self):
@@ -119,6 +152,7 @@ class TestContextGeneratorAsyncClientLeak:
             mock_async_instance.generate = AsyncMock(
                 side_effect=ConnectionError("ollama unreachable")
             )
+            del mock_async_instance.close  # match real ollama-python 0.6.x
             mock_async_instance._client = MagicMock()
             mock_async_instance._client.aclose = AsyncMock()
             mock_async_cls.return_value = mock_async_instance
