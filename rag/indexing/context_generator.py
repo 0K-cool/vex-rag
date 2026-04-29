@@ -61,14 +61,17 @@ class ContextGenerator:
         try:
             models = self._client.list()
             model_list = models.get('models', [])
-            # Handle both 'name' and 'model' keys (Ollama API variations)
             available = []
+            # ollama-python returns Pydantic Model objects (0.5+) or plain dicts
+            # (older releases). The original `isinstance(m, dict)` check was a
+            # silent no-op against modern Pydantic responses — see issue #15.
             for m in model_list:
                 if isinstance(m, dict):
-                    # Try 'name' first, fallback to 'model'
-                    model_name = m.get('name') or m.get('model', '')
-                    if model_name:
-                        available.append(model_name)
+                    model_name = m.get('model') or m.get('name', '')
+                else:
+                    model_name = getattr(m, 'model', None) or getattr(m, 'name', None)
+                if model_name:
+                    available.append(model_name)
 
             if available and not any(self.model in name for name in available):
                 raise ValueError(f"Model {self.model} not found. Available: {available}")
@@ -477,3 +480,15 @@ Please give a short succinct context to situate this chunk within the overall do
             'total_generated': self.generation_count,
             'model': self.model
         }
+
+    def close(self) -> None:
+        """Close the underlying sync httpx client to prevent ResourceWarning at process exit."""
+        try:
+            self._client.close()
+        except AttributeError:
+            try:
+                self._client._client.close()
+            except Exception:
+                logger.debug("Sync client cleanup failed", exc_info=True)
+        except Exception:
+            logger.debug("Sync client cleanup failed", exc_info=True)
