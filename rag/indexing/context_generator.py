@@ -142,7 +142,8 @@ Please give a short succinct context to situate this chunk within the overall do
         file_path: str,
         project: str,
         chunk_index: int,
-        semaphore: asyncio.Semaphore
+        semaphore: asyncio.Semaphore,
+        client: ollama.AsyncClient
     ) -> Optional[ContextualChunk]:
         """
         Async version of generate_context for parallel processing
@@ -173,7 +174,6 @@ Please give a short succinct context to situate this chunk within the overall do
 
             try:
                 # Use AsyncClient for concurrent requests
-                client = ollama.AsyncClient(timeout=self._ollama_timeout)
                 response = await client.generate(
                     model=self.model,
                     prompt=prompt,
@@ -315,6 +315,9 @@ Please give a short succinct context to situate this chunk within the overall do
                 file_path=file_path
             ))
 
+            # Create one shared AsyncClient for all tasks (avoids per-chunk socket leak)
+            client = ollama.AsyncClient(timeout=self._ollama_timeout)
+
             # Create tasks only for chunks that need context
             tasks = [
                 self._generate_context_async(
@@ -323,33 +326,50 @@ Please give a short succinct context to situate this chunk within the overall do
                     file_path=file_path,
                     project=project,
                     chunk_index=idx,
-                    semaphore=semaphore
+                    semaphore=semaphore,
+                    client=client
                 )
                 for idx, chunk in chunks_needing_context
             ]
 
             # Process chunks needing context in parallel with progress tracking
-            if tasks:
-                logger.info(f"Processing {len(tasks)} chunks in parallel (max {max_workers} workers)...")
-                generated_chunks = []
+            try:
+                if tasks:
+                    logger.info(f"Processing {len(tasks)} chunks in parallel (max {max_workers} workers)...")
+                    generated_chunks = []
 
-                # Process with progress updates
-                for coro in asyncio.as_completed(tasks):
-                    result = await coro
-                    if result is not None:
-                        generated_chunks.append(result)
+                    # Process with progress updates
+                    for coro in asyncio.as_completed(tasks):
+                        result = await coro
+                        if result is not None:
+                            generated_chunks.append(result)
 
-                    # Update progress
-                    progress_state["completed"] += 1
-                    notifier.notify(ProgressEvent(
-                        stage=IndexingStage.CONTEXT,
-                        message=f"Generating context",
-                        current=progress_state["completed"],
-                        total=progress_state["total"],
-                        file_path=file_path
-                    ))
-            else:
-                generated_chunks = []
+                        # Update progress
+                        progress_state["completed"] += 1
+                        notifier.notify(ProgressEvent(
+                            stage=IndexingStage.CONTEXT,
+                            message=f"Generating context",
+                            current=progress_state["completed"],
+                            total=progress_state["total"],
+                            file_path=file_path
+                        ))
+                else:
+                    generated_chunks = []
+            finally:
+                # Future-proof: prefer public close() when ollama-python adds it
+                # (https://github.com/ollama/ollama-python/issues/532). Today,
+                # 0.6.x AsyncClient has no public close()/aclose() — fall back
+                # to the underlying httpx client. Cleanup errors are swallowed
+                # and logged so they can't mask a successful generation result.
+                try:
+                    await client.close()
+                except AttributeError:
+                    try:
+                        await client._client.aclose()
+                    except Exception:
+                        logger.debug("AsyncClient cleanup failed", exc_info=True)
+                except Exception:
+                    logger.debug("AsyncClient cleanup failed", exc_info=True)
 
             # Combine generated and skipped chunks
             all_chunks = generated_chunks + chunks_skipped
