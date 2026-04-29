@@ -38,7 +38,8 @@ class ContextGenerator:
         self,
         model: str = "llama3.1:8b",
         temperature: float = 0.3,
-        max_tokens: int = 100
+        max_tokens: int = 100,
+        ollama_timeout: float = 30.0
     ):
         """
         Initialize context generator
@@ -47,15 +48,18 @@ class ContextGenerator:
             model: Ollama model to use (llama3.1:8b for M1 16GB)
             temperature: Lower = more focused (0.3 recommended)
             max_tokens: Max tokens for context (100 recommended)
+            ollama_timeout: HTTP timeout in seconds for Ollama requests (default 30)
         """
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.generation_count = 0
+        self._client = ollama.Client(timeout=ollama_timeout)
+        self._ollama_timeout = ollama_timeout
 
         # Verify model is available
         try:
-            models = ollama.list()
+            models = self._client.list()
             model_list = models.get('models', [])
             # Handle both 'name' and 'model' keys (Ollama API variations)
             available = []
@@ -108,7 +112,7 @@ Please give a short succinct context to situate this chunk within the overall do
 
         try:
             # Generate context using Llama 3.1 8B
-            response = ollama.generate(
+            response = self._client.generate(
                 model=self.model,
                 prompt=prompt,
                 options={
@@ -169,7 +173,7 @@ Please give a short succinct context to situate this chunk within the overall do
 
             try:
                 # Use AsyncClient for concurrent requests
-                client = ollama.AsyncClient()
+                client = ollama.AsyncClient(timeout=self._ollama_timeout)
                 response = await client.generate(
                     model=self.model,
                     prompt=prompt,
