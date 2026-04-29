@@ -101,6 +101,20 @@ class TestContextGeneratorModelAvailability:
             with pytest.raises(ValueError, match=r"Model llama3.1:8b not found"):
                 ContextGenerator(model='llama3.1:8b')
 
+    def test_dict_response_backward_compat(self):
+        """Older dict-shaped responses still work for ContextGenerator too."""
+        with patch("rag.indexing.context_generator.ollama.Client") as mock_cls:
+            instance = MagicMock()
+            instance.list.return_value = {
+                'models': [
+                    {'model': 'llama3.1:8b'},
+                    {'name': 'nomic-embed-text'},  # legacy 'name' key
+                ]
+            }
+            mock_cls.return_value = instance
+
+            ContextGenerator(model='llama3.1:8b')  # no raise
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

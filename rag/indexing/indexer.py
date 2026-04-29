@@ -691,9 +691,11 @@ class KnowledgeBaseIndexer:
 
             # Stage 4: Context Generation (PARALLEL + SELECTIVE + FASTER MODEL)
             # Using llama3.2:1b for 3-5x speedup vs llama3.1:8b (smaller, faster model)
-            context_gen = ContextGenerator(model="llama3.2:1b")
-            embedder = Embedder(model="nomic-embed-text")
+            context_gen = None
+            embedder = None
             try:
+                context_gen = ContextGenerator(model="llama3.2:1b")
+                embedder = Embedder(model="nomic-embed-text")
                 contextual_chunks = context_gen.generate_contexts_parallel(
                     chunks=chunks,
                     full_document=document.content,
@@ -713,8 +715,12 @@ class KnowledgeBaseIndexer:
                 logger.info(f"Generated {len(embeddings)} embeddings")
             finally:
                 # Close sync ollama clients to prevent ResourceWarning (issue #16).
-                context_gen.close()
-                embedder.close()
+                # Guard against partially-constructed state — if ContextGenerator
+                # succeeds but Embedder raises, only context_gen is set.
+                if context_gen is not None:
+                    context_gen.close()
+                if embedder is not None:
+                    embedder.close()
 
             # Stage 6: Indexing into LanceDB
             notifier.notify(ProgressEvent(
