@@ -11,6 +11,7 @@ Uses Ollama's nomic-embed-text model:
 Security: All embeddings generated locally, zero data exfiltration risk
 """
 
+import time
 import ollama
 from typing import List, Optional, TYPE_CHECKING
 import numpy as np
@@ -25,13 +26,20 @@ logger = logging.getLogger(__name__)
 class Embedder:
     """Generate embeddings using nomic-embed-text via Ollama"""
 
-    def __init__(self, model: str = "nomic-embed-text"):
+    def __init__(
+        self,
+        model: str = "nomic-embed-text",
+        ollama_timeout: float = 30.0,
+        slow_embed_warn_secs: float = 5.0
+    ):
         self.model = model
         self.embedding_count = 0
         self.expected_dimensions = 768
+        self._client = ollama.Client(timeout=ollama_timeout)
+        self._slow_embed_warn_secs = slow_embed_warn_secs
 
         try:
-            models = ollama.list()
+            models = self._client.list()
             model_list = models.get('models', [])
             available = []
             for m in model_list:
@@ -49,7 +57,14 @@ class Embedder:
 
     def embed(self, text: str) -> Optional[List[float]]:
         try:
-            response = ollama.embeddings(model=self.model, prompt=text)
+            _t0 = time.perf_counter()
+            response = self._client.embeddings(model=self.model, prompt=text)
+            _elapsed = time.perf_counter() - _t0
+            if _elapsed > self._slow_embed_warn_secs:
+                logger.warning(
+                    f"Slow embedding: {_elapsed:.2f}s (threshold {self._slow_embed_warn_secs}s). "
+                    f"Ollama may be under backpressure from concurrent clients."
+                )
             embedding = response['embedding']
             if len(embedding) != self.expected_dimensions:
                 logger.warning(f"Unexpected embedding dimensions: {len(embedding)}")
